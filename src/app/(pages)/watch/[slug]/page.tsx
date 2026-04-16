@@ -12,25 +12,26 @@ import Link from "next/link";
 import { Suspense, cache } from "react";
 import UpdateWatchlistButton from "./update-progress";
 
-interface PageProps {
-  params: Promise<{ slug: string }>;
+interface PageProps { params: Promise<{ slug: string }> }
+
+// Normalise the slug coming from Next.js router:
+// - URL-decode it
+// - If it's a full URL, extract the slug part
+// - Otherwise use as-is
+function normaliseRouteSlug(raw: string): string {
+  const decoded = decodeURIComponent(raw);
+  return decoded.startsWith("http") ? toSlug(decoded) : decoded;
 }
 
-const cachedEpisodeInfo = cache(async (slug: string) =>
-  getEpisodeInfo(toSlug(decodeURIComponent(slug)))
-);
-const cachedAuth = cache(async () => await auth());
+const cachedEpisodeInfo = cache((slug: string) => getEpisodeInfo(slug));
+const cachedAuth = cache(() => auth());
 
-export async function generateMetadata(
-  { params }: PageProps,
-  parent: ResolvingMetadata,
-): Promise<Metadata> {
+export async function generateMetadata({ params }: PageProps, parent: ResolvingMetadata): Promise<Metadata> {
   try {
     const { slug } = await params;
-    const info = await cachedEpisodeInfo(slug);
-    const titleText = `${info.title} — Episode ${info.number}`;
+    const info = await cachedEpisodeInfo(normaliseRouteSlug(slug));
     return {
-      title: titleText,
+      title: `${info.title} — Episode ${info.number}`,
       description: `Watch ${info.title} episode ${info.number} on Dramzy.`,
     };
   } catch {
@@ -41,10 +42,13 @@ export async function generateMetadata(
 
 export default async function Page({ params }: PageProps) {
   const { slug } = await params;
-  const info = await cachedEpisodeInfo(slug);
+  const episodeId = normaliseRouteSlug(slug);
+  const info = await cachedEpisodeInfo(episodeId);
   const { dramaId, title, number } = info;
 
   notify(`Watching: ${title} ep ${number}`).catch(() => {});
+
+  const dramaSlug = dramaId.replace("drama-detail/", "");
 
   return (
     <section className="relative min-h-screen">
@@ -53,16 +57,10 @@ export default async function Page({ params }: PageProps) {
       <div className="relative z-10 mx-auto w-screen px-4 py-6 lg:container lg:py-8 space-y-4">
         {/* Back */}
         <div className="flex items-center justify-between">
-          <Link
-            href={`/drama/${dramaId.replace("drama-detail/", "")}`}
-            className={buttonVariants({ variant: "outline", size: "sm" })}
-          >
-            <ChevronLeft className="w-3.5 h-3.5" />
-            Back to Series
+          <Link href={`/drama/${dramaSlug}`} className={buttonVariants({ variant: "outline", size: "sm" })}>
+            <ChevronLeft className="w-3.5 h-3.5" /> Back to Series
           </Link>
-          <span className="text-xs text-muted-foreground font-heading tracking-widest hidden sm:block">
-            Dramzy
-          </span>
+          <span className="text-xs text-muted-foreground font-heading tracking-widest hidden sm:block">DRAMZY</span>
         </div>
 
         {/* Player */}
@@ -73,29 +71,25 @@ export default async function Page({ params }: PageProps) {
                 <div className="size-full bg-black flex items-center justify-center">
                   <div className="text-center space-y-3">
                     <Flame className="w-8 h-8 text-brand-600 animate-flicker mx-auto" strokeWidth={1.5} />
-                    <p className="text-xs text-muted-foreground tracking-widest font-heading">
-                      LOADING STREAM…
-                    </p>
+                    <p className="text-xs text-muted-foreground tracking-widest font-heading">LOADING STREAM…</p>
                   </div>
                 </div>
               </AspectRatio>
             }
           >
-            <PlayerSection episodeSlug={slug} number={number} dramaId={dramaId} />
+            <PlayerSection episodeId={episodeId} number={number} dramaId={dramaId} />
           </Suspense>
         </div>
 
         {/* Title */}
         <div>
-          <h1 className="font-heading text-2xl lg:text-3xl text-white tracking-wide">
-            {title}
-          </h1>
+          <h1 className="font-heading text-2xl lg:text-3xl text-white tracking-wide">{title}</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Episode {number}</p>
         </div>
 
         {/* Controls */}
         <Suspense fallback={null}>
-          <ControlButtons episodeSlug={slug} />
+          <ControlButtons episodeId={episodeId} />
         </Suspense>
 
         <div className="border-t border-border/30 pt-4" />
@@ -104,44 +98,33 @@ export default async function Page({ params }: PageProps) {
   );
 }
 
-async function PlayerSection({
-  episodeSlug,
-  dramaId,
-  number,
-}: {
-  episodeSlug: string;
-  dramaId: string;
-  number: number;
-}) {
-  const sources = await getEpisodeSources(toSlug(decodeURIComponent(episodeSlug)));
-  const session = await cachedAuth();
+async function PlayerSection({ episodeId, dramaId, number }: { episodeId: string; dramaId: string; number: number }) {
+  const [sources, session] = await Promise.all([
+    getEpisodeSources(episodeId),
+    cachedAuth(),
+  ]);
 
   let seekTo: number | undefined;
   if (session) {
     const progress = await db.query.progress.findFirst({
-      where: (t, { eq, and }) =>
-        and(eq(t.episodeSlug, toSlug(decodeURIComponent(episodeSlug))), eq(t.userId, session.user.id)),
+      where: (t, { eq, and }) => and(eq(t.episodeSlug, episodeId), eq(t.userId, session.user.id)),
     });
     seekTo = progress ? Number(progress.seconds) : undefined;
   }
 
   const hlsSource = sources?.sources.find((s) => s.isM3U8) ?? sources?.sources[0];
 
-  // No direct source — use embed iframe
+  // Embed iframe fallback
   if (!hlsSource && sources?.embedUrl) {
     return (
       <AspectRatio ratio={16 / 9}>
-        <iframe
-          src={sources.embedUrl}
-          className="w-full h-full border-0"
-          allowFullScreen
-          allow="autoplay; fullscreen; encrypted-media"
-          title={`Episode ${number}`}
-        />
+        <iframe src={sources.embedUrl} className="w-full h-full border-0"
+          allowFullScreen allow="autoplay; fullscreen; encrypted-media" title={`Episode ${number}`} />
       </AspectRatio>
     );
   }
 
+  // No sources at all
   if (!hlsSource) {
     return (
       <AspectRatio ratio={16 / 9}>
@@ -149,8 +132,8 @@ async function PlayerSection({
           <div className="text-center space-y-3 px-8">
             <Flame className="w-10 h-10 text-brand-700 mx-auto" strokeWidth={1.5} />
             <p className="font-heading text-sm text-white tracking-wider">NO STREAM AVAILABLE</p>
-            <p className="text-xs text-muted-foreground">
-              This episode has no streaming sources yet. Try again later.
+            <p className="text-xs text-muted-foreground max-w-xs">
+              This episode has no streaming sources yet. The stream may be processing — try again in a moment.
             </p>
           </div>
         </div>
@@ -160,19 +143,13 @@ async function PlayerSection({
 
   return (
     <AspectRatio ratio={16 / 9}>
-      <VideoPlayerWrapper
-        slug={toSlug(decodeURIComponent(episodeSlug))}
-        dramaId={dramaId}
-        number={number}
-        seekTo={seekTo}
-        url={hlsSource.url}
-      />
+      <VideoPlayerWrapper slug={episodeId} dramaId={dramaId} number={number} seekTo={seekTo} url={hlsSource.url} />
     </AspectRatio>
   );
 }
 
-async function ControlButtons({ episodeSlug }: { episodeSlug: string }) {
-  const info = await cachedEpisodeInfo(episodeSlug);
+async function ControlButtons({ episodeId }: { episodeId: string }) {
+  const info = await cachedEpisodeInfo(episodeId);
   const { episodes, number, downloadLink, dramaId } = info;
   const session = await cachedAuth();
 
@@ -192,13 +169,9 @@ async function ControlButtons({ episodeSlug }: { episodeSlug: string }) {
   return (
     <div className="flex flex-wrap gap-2 items-center">
       <Button size="sm" variant="outline" disabled={!episodes.previous} asChild={!!episodes.previous}>
-        {episodes.previous ? (
-          <Link href={`/watch/${episodes.previous}`} scroll={false}>
-            <ChevronLeft className="w-3.5 h-3.5" /> Previous
-          </Link>
-        ) : (
-          <span><ChevronLeft className="w-3.5 h-3.5" /> Previous</span>
-        )}
+        {episodes.previous
+          ? <Link href={`/watch/${episodes.previous}`} scroll={false}><ChevronLeft className="w-3.5 h-3.5" /> Previous</Link>
+          : <span><ChevronLeft className="w-3.5 h-3.5" /> Previous</span>}
       </Button>
 
       <Button size="sm" variant="secondary" className="gap-1.5 pointer-events-none">
@@ -207,13 +180,9 @@ async function ControlButtons({ episodeSlug }: { episodeSlug: string }) {
       </Button>
 
       <Button size="sm" variant="outline" disabled={!episodes.next} asChild={!!episodes.next}>
-        {episodes.next ? (
-          <Link href={`/watch/${episodes.next}`} scroll={false}>
-            Next <ChevronRight className="w-3.5 h-3.5" />
-          </Link>
-        ) : (
-          <span>Next <ChevronRight className="w-3.5 h-3.5" /></span>
-        )}
+        {episodes.next
+          ? <Link href={`/watch/${episodes.next}`} scroll={false}>Next <ChevronRight className="w-3.5 h-3.5" /></Link>
+          : <span>Next <ChevronRight className="w-3.5 h-3.5" /></span>}
       </Button>
 
       {downloadLink && (
