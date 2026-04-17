@@ -1,6 +1,8 @@
 /**
  * DRAMZY — Xyra Stream API Client
  * Base: https://api.xyra.stream/v1/dramacool
+ *
+ * Field names sourced from the actual API source code (api.xyra-main).
  */
 
 import type {
@@ -13,7 +15,7 @@ const BASE_URL =
   "https://api.xyra.stream/v1/dramacool";
 const API_KEY = process.env.XYRA_API_KEY ?? "";
 
-// ─── Core fetcher ─────────────────────────────────────────────────────────────
+// ─── Core GET fetcher ─────────────────────────────────────────────────────────
 
 async function xyraGet<T>(
   endpoint: string,
@@ -28,10 +30,11 @@ async function xyraGet<T>(
   try {
     const res = await fetch(url, { method: "GET", ...fetchOptions });
     if (!res.ok) {
-      console.error(`[Xyra] GET /${endpoint} → HTTP ${res.status} (id: ${params.episode_id ?? params.id ?? ""})`);
+      console.error(`[Xyra] GET /${endpoint} → HTTP ${res.status} (${JSON.stringify(params)})`);
       return null;
     }
     const json = await res.json();
+    // The API wraps all responses in { success: true, data: {...} }
     return (json?.data ?? json) as T;
   } catch (err: unknown) {
     const code = (err as NodeJS.ErrnoException)?.code;
@@ -44,101 +47,112 @@ async function xyraGet<T>(
   }
 }
 
-/**
- * Try multiple episode_id candidates and return the first successful response.
- * The Xyra /stream endpoint is picky about the id format.
- * Common formats:
- *   "drama-slug-episode-3-english-subbed"
- *   "drama-slug-episode-3"
- *   "drama-slug-episode-3-english-sub"
- *   "drama-slug-ep-3"
- */
-async function tryStreamVariants<T>(baseId: string): Promise<T | null> {
-  const variants = [
-    baseId,
-    `${baseId}-english-subbed`,
-    `${baseId}-english-sub`,
-    // If it already has a suffix, try without it
-    baseId.replace(/-english-subbed$/, ""),
-    baseId.replace(/-english-sub$/, ""),
-    // Try replacing -episode- with -ep-
-    baseId.replace(/-episode-/, "-ep-"),
-    // Try replacing -ep- with -episode-
-    baseId.replace(/-ep-(\d+)/, "-episode-$1"),
-  ];
+// ─── Exact API response types (from source code) ─────────────────────────────
 
-  // Deduplicate
-  const seen = new Set<string>();
-  const deduped = variants.filter((v) => {
-    if (seen.has(v) || !v) return false;
-    seen.add(v);
-    return true;
-  });
-
-  for (const candidate of deduped) {
-    const result = await xyraGet<T>("stream", { episode_id: candidate }, { cache: "no-store" } as RequestInit);
-    if (result) {
-      console.log(`[Xyra] /stream succeeded with id: "${candidate}"`);
-      return result;
-    }
-  }
-  return null;
-}
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
+/** Card as returned by /home, /popular, /latest, /search */
 type XyraCardRaw = {
-  id?: string; title?: string; image?: string; url?: string; status?: string; type?: string;
+  // /popular, /search use these
+  id?: string;
+  title?: string;
+  image?: string;
+  url?: string;
+  status?: string;
+  type?: string;
+  // /home uses original_id for episode links, id for drama links
+  original_id?: string;
 };
+
 type XyraPagedRaw = {
   currentPage?: number; hasNextPage?: boolean;
-  results?: XyraCardRaw[]; data?: XyraCardRaw[]; drama?: XyraCardRaw[];
-  [key: string]: unknown;
+  results?: XyraCardRaw[]; data?: XyraCardRaw[];
+  drama?: XyraCardRaw[]; [key: string]: unknown;
 };
+
+/**
+ * Exact fields from /info endpoint (info.js source):
+ *   title, thumbnail, synopsis, other_name, total_episode,
+ *   duration, rating, airs, country, status, release_year,
+ *   genres, starring, trailer, episodes[]
+ */
 type XyraInfoRaw = {
-  id?: string; title?: string; image?: string; cover?: string; thumbnail?: string;
-  description?: string; synopsis?: string;
-  otherNames?: string[]; other_names?: string[];
-  genres?: string[]; genre?: string[];
-  releaseDate?: number | string; release_year?: number | string; year?: number | string;
-  status?: string;
-  episodes?: XyraEpisodeRaw[]; episodeList?: XyraEpisodeRaw[];
-};
-type XyraEpisodeRaw = {
-  id?: string; episodeId?: string; url?: string;
   title?: string;
-  episode?: number | string; episodeNumber?: number | string; num?: number | string;
-  subType?: string; sub_type?: string; type?: string;
-  releaseDate?: string; release_date?: string;
+  thumbnail?: string;          // ← correct field (not "image" or "cover")
+  synopsis?: string;           // ← correct field (not "description")
+  other_name?: string;         // ← singular string (not array)
+  total_episode?: string;
+  duration?: string;
+  rating?: string;
+  airs?: string;
+  country?: string;
+  status?: string;
+  release_year?: string;
+  genres?: string[];
+  starring?: string[];
+  trailer?: string;
+  episodes?: XyraEpisodeRaw[];
 };
+
+/**
+ * Exact episode fields from /info endpoint (info.js source):
+ *   { title, episode_id, time }
+ * episode_id is the slug used directly by /stream
+ * e.g. "my-girlfriend-is-an-alien-2-2022-episode-1-english-subbed"
+ */
+type XyraEpisodeRaw = {
+  episode_id?: string;         // ← THE correct field name from API source!
+  title?: string;
+  time?: string;
+  // Legacy fallbacks (in case API version differs)
+  id?: string;
+  episodeId?: string;
+  url?: string;
+};
+
+/**
+ * /stream response (stream.js source):
+ * Returns { success, data: { serverName: { embeded_link, m3u8, stream, sub } }, has_m3u8 }
+ * OR on fallback: { success, data: { iframe_only: { embeded_link } } }
+ */
 type XyraStreamRaw = {
+  has_m3u8?: boolean;
+  server_url?: string;
+  embed_iframe_url?: string;
+  data?: Record<string, {
+    embeded_link?: string;
+    stream?: string;
+    sub?: string;
+    m3u8?: boolean;
+    embed_only?: boolean;
+    skipped?: boolean;
+    error?: string;
+  }>;
+  // Legacy flat response format
   sources?: Array<{ url?: string; isM3U8?: boolean; quality?: string; file?: string }>;
-  source?: string;
-  subtitles?: Array<{ url?: string; lang?: string; label?: string; file?: string }>;
-  tracks?: Array<{ url?: string; file?: string; lang?: string; label?: string; kind?: string }>;
-  embedUrl?: string; embed_url?: string; iframe?: string; download?: string;
-  title?: string; seriesTitle?: string;
-  id?: string; dramaId?: string; drama_id?: string;
-  number?: number | string; episodeNo?: number | string; episodeNumber?: number | string;
+  embedUrl?: string; embed_url?: string; iframe?: string;
+  // Episode metadata (if returned)
+  title?: string;
+  number?: number | string;
+  dramaId?: string; drama_id?: string;
   downloadLink?: string; download_link?: string;
   nextEpisodeId?: string; prevEpisodeId?: string;
-  next?: string; previous?: string; prev?: string;
   episodes?: { next?: string; previous?: string; prev?: string; list?: Array<{ value?: string; label?: string }> };
 };
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Normalisers ──────────────────────────────────────────────────────────────
 
 function isValidImage(src?: string): boolean {
-  return !!(src && src.trim() !== "" && (src.startsWith("http") || src.startsWith("/")));
+  return !!(src?.trim() && (src.startsWith("http") || src.startsWith("/")));
 }
 
 function cardId(c: XyraCardRaw): string {
-  return toSlug(c.id || c.url || "");
+  // For episode cards from /home, use original_id (full episode slug)
+  // For drama cards, use id (drama slug)
+  return toSlug(c.original_id || c.id || c.url || "");
 }
 
 function normaliseCard(c: XyraCardRaw): Featured {
   return {
-    id: cardId(c),
+    id: toSlug(c.id || c.url || ""),          // drama id (for /drama/[slug])
     title: c.title ?? "Unknown",
     image: isValidImage(c.image) ? c.image! : "/placeholder.svg",
     status: c.status,
@@ -146,7 +160,18 @@ function normaliseCard(c: XyraCardRaw): Featured {
   };
 }
 
-function extractCards(raw: unknown): XyraCardRaw[] {
+/** For episode cards from /home (recent section) — keep original_id as the episode link */
+function normaliseEpisodeCard(c: XyraCardRaw): Featured {
+  return {
+    id: toSlug(c.original_id || c.id || c.url || ""),  // full episode slug for /watch
+    title: c.title ?? "Unknown",
+    image: isValidImage(c.image) ? c.image! : "/placeholder.svg",
+    status: c.status,
+    type: c.type,
+  };
+}
+
+function extractCards(raw: unknown, forEpisodes = false): XyraCardRaw[] {
   if (!raw) return [];
   if (Array.isArray(raw)) return raw as XyraCardRaw[];
   if (typeof raw !== "object") return [];
@@ -179,27 +204,22 @@ function normaliseStatus(s?: string): "ongoing" | "completed" | "upcoming" | und
   return undefined;
 }
 
-function normaliseEpisode(e: XyraEpisodeRaw, index: number, dramaSlug: string) {
-  const subRaw = (e.subType ?? e.sub_type ?? e.type ?? "SUB").toUpperCase();
-  const subType: "SUB" | "DUB" | "RAW" =
-    subRaw === "DUB" ? "DUB" : subRaw === "RAW" ? "RAW" : "SUB";
-  const epNum = Number(e.episode ?? e.episodeNumber ?? e.num ?? index + 1);
+function normaliseEpisode(e: XyraEpisodeRaw, index: number) {
+  // episode_id is the exact field from /info (api source: info.js)
+  // It's the slug used directly by /stream — DO NOT modify it
+  const epId = e.episode_id ?? e.id ?? e.episodeId ?? "";
 
-  // Try explicit id fields first
-  const rawId = e.id ?? e.episodeId ?? e.url ?? "";
-  let epId = rawId ? toSlug(rawId) : "";
-
-  // Fallback: construct the most common DramaCool episode slug format
-  if (!epId) {
-    epId = `${dramaSlug}-episode-${epNum}`;
-  }
+  // Extract episode number from the episode_id slug or title
+  const numFromId = epId.match(/episode[-_](\d+)/i)?.[1];
+  const numFromTitle = e.title?.match(/(?:episode|ep)[\s\-_]?(\d+)/i)?.[1];
+  const epNum = Number(numFromId ?? numFromTitle ?? index + 1);
 
   return {
-    id: epId,
+    id: epId,                         // exact slug for /stream
     title: e.title ?? `Episode ${epNum}`,
     episode: epNum,
-    subType,
-    releaseDate: e.releaseDate ?? e.release_date ?? "",
+    subType: "SUB" as const,
+    releaseDate: e.time ?? "",
   };
 }
 
@@ -213,12 +233,23 @@ export async function getFeatured(): Promise<Featured[]> {
   return extractCards(raw).map(normaliseCard).filter((c) => c.id && isValidImage(c.image));
 }
 
+/** getRecent uses original_id for episode links (correct for /watch) */
 export async function getRecent(page = 1): Promise<Recent> {
   let raw = await xyraGet<XyraPagedRaw>("latest_kdrama", { page }, { cache: "no-store" } as RequestInit);
   if (!raw) raw = await xyraGet<XyraPagedRaw>("latest", { page }, { cache: "no-store" } as RequestInit);
   if (!raw) return emptyPaged(page);
-  const p = extractPaged(raw);
-  return { currentPage: p.currentPage, hasNextPage: p.hasNextPage, results: p.results.map(normaliseCard).filter((c) => c.id && isValidImage(c.image)) };
+  const items = extractCards(raw);
+  // Use normaliseEpisodeCard to preserve original_id as episode link
+  const results = items
+    .map((c) => ({
+      id: toSlug(c.original_id || c.id || c.url || ""),
+      title: c.title ?? "Unknown",
+      image: isValidImage(c.image) ? c.image! : "/placeholder.svg",
+      status: c.status,
+      type: c.type,
+    }))
+    .filter((c) => c.id && isValidImage(c.image));
+  return { currentPage: 1, hasNextPage: false, results };
 }
 
 export async function getTrending(page = 1): Promise<TopAiring> {
@@ -262,90 +293,131 @@ export async function discover(
 export async function getDramaInfo(slug: string): Promise<XyraDramaInfo | null> {
   const cleanSlug = toSlug(decodeURIComponent(slug));
   const id = toDramaId(cleanSlug);
+
   const raw = await xyraGet<XyraInfoRaw>("info", { id }, { next: { revalidate: 3600 } } as RequestInit);
   if (!raw) return null;
-  const episodes = raw.episodes ?? raw.episodeList ?? [];
+
   return {
     id: cleanSlug,
     title: raw.title ?? "Unknown",
-    image: isValidImage(raw.image ?? raw.cover ?? raw.thumbnail) ? (raw.image ?? raw.cover ?? raw.thumbnail)! : "/placeholder.svg",
-    description: raw.description ?? raw.synopsis ?? "",
-    otherNames: raw.otherNames ?? raw.other_names,
-    genres: raw.genres ?? raw.genre,
-    releaseDate: Number(raw.releaseDate ?? raw.release_year ?? raw.year ?? 0) || undefined,
+    // API returns "thumbnail" not "image"
+    image: isValidImage(raw.thumbnail) ? raw.thumbnail! : "/placeholder.svg",
+    // API returns "synopsis" not "description"
+    description: raw.synopsis ?? "",
+    // API returns "other_name" (singular string) not "otherNames" (array)
+    otherNames: raw.other_name ? [raw.other_name] : undefined,
+    genres: raw.genres,
+    releaseDate: raw.release_year ? Number(raw.release_year) : undefined,
     status: normaliseStatus(raw.status),
-    episodes: Array.isArray(episodes) ? episodes.map((e, i) => normaliseEpisode(e, i, cleanSlug)) : [],
+    // Additional fields from API
+    country: raw.country,
+    starring: raw.starring,
+    duration: raw.duration,
+    rating: raw.rating,
+    trailer: raw.trailer,
+    // Episodes: use normaliseEpisode which reads episode_id (the correct field)
+    episodes: Array.isArray(raw.episodes)
+      ? raw.episodes.map((e, i) => normaliseEpisode(e, i))
+      : [],
   };
 }
 
+/**
+ * Get streaming sources for an episode.
+ * episode_id MUST be the exact slug from /info episodes[].episode_id
+ * The API visits: https://dramacool.sh/{episode_id}/ and scrapes it.
+ *
+ * Returns sources array OR embedUrl from the server data.
+ */
 export async function getEpisodeSources(episodeId: string): Promise<XyraStreamResult | null> {
-  // episodeId is already normalised by the watch page — don't double-process
-  const cleanId = episodeId.startsWith("http") ? toSlug(episodeId) : episodeId;
-  const raw = await tryStreamVariants<XyraStreamRaw>(cleanId);
+  const raw = await xyraGet<XyraStreamRaw>("stream", { episode_id: episodeId }, { cache: "no-store" } as RequestInit);
   if (!raw) return null;
 
-  const sourcesRaw = raw.sources ?? (raw.source ? [{ url: raw.source }] : []);
-  const sources = sourcesRaw
-    .map((s) => ({ url: s.url ?? s.file ?? "", isM3U8: s.isM3U8 ?? (s.url ?? s.file ?? "").includes(".m3u8"), quality: s.quality }))
-    .filter((s) => s.url);
+  const sources: XyraStreamResult["sources"] = [];
+  let embedUrl: string | undefined;
 
-  const subsRaw = raw.subtitles ?? raw.tracks ?? [];
-  const subtitles = subsRaw
-    .filter((s) => s.kind !== "thumbnails")
-    .filter((s) => (s.url ?? s.file) && (s.lang ?? s.label))
-    .map((s) => ({ url: s.url ?? s.file ?? "", lang: s.lang ?? s.label ?? "Unknown" }));
+  // The API returns data as { serverName: { embeded_link, stream, m3u8 } }
+  if (raw.data && typeof raw.data === "object") {
+    for (const [, serverData] of Object.entries(raw.data)) {
+      if (serverData.skipped) continue;
 
-  return {
-    sources,
-    subtitles,
-    embedUrl: raw.embedUrl ?? raw.embed_url ?? raw.iframe,
-  };
+      // Direct HLS stream
+      if (serverData.stream && serverData.m3u8) {
+        sources.push({ url: serverData.stream, isM3U8: true });
+      }
+      // Embed link as fallback
+      if (!embedUrl && serverData.embeded_link) {
+        embedUrl = serverData.embeded_link;
+      }
+    }
+  }
+
+  // Legacy flat format fallback
+  if (sources.length === 0 && raw.sources) {
+    for (const s of raw.sources) {
+      const url = s.url ?? s.file ?? "";
+      if (url) sources.push({ url, isM3U8: s.isM3U8 ?? url.includes(".m3u8") });
+    }
+  }
+
+  // Use embed_iframe_url from the API response as the iframe fallback
+  if (!embedUrl) {
+    embedUrl = raw.embed_iframe_url ?? raw.embedUrl ?? raw.embed_url ?? raw.iframe;
+  }
+
+  return { sources, subtitles: [], embedUrl };
 }
 
+/**
+ * Get episode metadata for the watch page.
+ * We derive this from the episode_id slug (no extra API call needed).
+ * The /stream endpoint doesn't return episode metadata in a structured way.
+ */
 export async function getEpisodeInfo(episodeSlug: string): Promise<EpisodeInfo> {
-  const cleanSlug = episodeSlug.startsWith("http") ? toSlug(episodeSlug) : episodeSlug;
-
-  const raw = await tryStreamVariants<XyraStreamRaw>(cleanSlug);
-
+  // Parse episode number from slug
   const epMatch =
-    cleanSlug.match(/episode[-_\s](\d+)/i) ??
-    cleanSlug.match(/-ep[-_](\d+)/i) ??
-    cleanSlug.match(/-(\d+)(?:-english|-sub|-raw|-dub|$)/i);
-  const epNumber = Number(raw?.number ?? raw?.episodeNo ?? raw?.episodeNumber ?? epMatch?.[1] ?? 1);
+    episodeSlug.match(/episode[-_](\d+)/i) ??
+    episodeSlug.match(/ep[-_](\d+)/i);
+  const epNumber = Number(epMatch?.[1] ?? 1);
 
-  const rawDramaId = raw?.dramaId ?? raw?.drama_id ?? "";
-  const dramaId = rawDramaId
-    ? toDramaId(toSlug(rawDramaId))
-    : toDramaId(
-        cleanSlug
-          .replace(/-episode[-_\s]\d+.*/i, "")
-          .replace(/-ep[-_]\d+.*/i, "")
-          .replace(/-\d+(?:-english|-sub|-raw|-dub)?$/i, ""),
-      );
+  // Strip episode suffix to get drama slug
+  const dramaSlug = episodeSlug
+    .replace(/-episode-\d+.*/i, "")
+    .replace(/-ep-\d+.*/i, "");
+  const dramaId = toDramaId(dramaSlug);
 
-  // Title from API or derive from slug
-  const title =
-    raw?.title ??
-    raw?.seriesTitle ??
-    dramaId
-      .replace("drama-detail/", "")
-      .split("-")
-      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-      .join(" ");
+  // Derive a readable title from the drama slug
+  const title = dramaSlug
+    .split("-")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
 
-  const nextId = raw?.episodes?.next ?? raw?.nextEpisodeId ?? raw?.next;
-  const prevId = raw?.episodes?.previous ?? raw?.episodes?.prev ?? raw?.prevEpisodeId ?? raw?.previous ?? raw?.prev;
+  // Try to get the actual drama title + nav links from the drama info
+  // This is cached, so subsequent episode watches are fast
+  let finalTitle = title;
+  let nextId: string | undefined;
+  let prevId: string | undefined;
+
+  try {
+    const info = await getDramaInfo(dramaSlug);
+    if (info?.title) finalTitle = info.title;
+    if (info?.episodes && info.episodes.length > 0) {
+      const idx = info.episodes.findIndex((e) => e.id === episodeSlug);
+      if (idx !== -1) {
+        nextId = info.episodes[idx + 1]?.id;
+        prevId = info.episodes[idx - 1]?.id;
+      }
+    }
+  } catch {
+    // Fine — we have enough from the slug
+  }
 
   return {
-    id: cleanSlug,
-    title,
+    id: episodeSlug,
+    title: finalTitle,
     dramaId,
     number: epNumber,
-    downloadLink: raw?.downloadLink ?? raw?.download_link ?? raw?.download ?? "",
-    episodes: {
-      next: nextId ? toSlug(nextId) : undefined,
-      previous: prevId ? toSlug(prevId) : undefined,
-      list: raw?.episodes?.list ?? [],
-    },
+    downloadLink: "",
+    episodes: { next: nextId, previous: prevId, list: [] },
   };
 }

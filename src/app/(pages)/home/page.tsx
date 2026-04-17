@@ -122,9 +122,10 @@ async function HeroBanner() {
             <div className="relative w-full" style={{ aspectRatio: "16/6" }}>
               <Image
                 src={item.image} alt={item.title} fill
-                className="object-cover brightness-45"
+                className="object-cover brightness-55"
                 priority={i === 0}
-                unoptimized={item.image.startsWith("http")}
+                sizes="100vw"
+                unoptimized
               />
               <div className="absolute inset-0 bg-gradient-to-t from-[#0f1117] via-[#0f1117]/40 to-transparent" />
               <div className="absolute inset-0 bg-gradient-to-r from-[#0f1117]/80 via-transparent to-transparent" />

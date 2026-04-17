@@ -51,7 +51,7 @@ export default async function Page({ params }: PageProps) {
   const drama = await getDramaInfo(toSlug(decodeURIComponent(slug)));
   if (!drama) throw new Error("Drama not found");
 
-  const { description, episodes, id, image, otherNames, releaseDate, title, genres, status } = drama;
+  const { description, episodes, id, image, otherNames, releaseDate, title, genres, status, country, starring, duration, rating, trailer } = drama;
 
   // Fetch related dramas for the "More Like This" section
   const related = await getTrending(1);
@@ -61,7 +61,7 @@ export default async function Page({ params }: PageProps) {
     <section className="relative min-h-screen">
       {/* Cinematic backdrop */}
       <div className="absolute inset-x-0 top-0 h-[480px] overflow-hidden pointer-events-none">
-        <Image src={image} alt={title} fill className="object-cover object-top brightness-20 blur-sm scale-105" priority unoptimized />
+        <Image src={image} alt={title} fill className="object-cover object-top brightness-30" priority unoptimized />
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#0f1117]/80 to-[#0f1117]" />
         <div className="absolute inset-0 bg-gradient-to-r from-[#0f1117]/60 to-transparent" />
       </div>
@@ -115,10 +115,19 @@ export default async function Page({ params }: PageProps) {
                   <Film className="w-3.5 h-3.5 text-brand-500" /> {episodes.length} Episodes
                 </span>
               )}
-              {otherNames && otherNames.length > 0 && (
+              {country && (
                 <span className="flex items-center gap-1.5 text-xs">
-                  <Globe className="w-3.5 h-3.5 text-brand-500" />
-                  {otherNames[0]}
+                  <Globe className="w-3.5 h-3.5 text-brand-500" /> {country}
+                </span>
+              )}
+              {duration && (
+                <span className="flex items-center gap-1.5 text-xs">
+                  <Clock className="w-3.5 h-3.5 text-brand-500" /> {duration}
+                </span>
+              )}
+              {rating && (
+                <span className="flex items-center gap-1.5 text-xs">
+                  <Star className="w-3.5 h-3.5 text-brand-500" /> {rating}
                 </span>
               )}
             </div>
@@ -216,6 +225,30 @@ export default async function Page({ params }: PageProps) {
               {otherNames.map((name, i) => (
                 <span key={i} className="text-sm text-muted-foreground bg-secondary/60 rounded px-3 py-1">{name}</span>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Cast */}
+        {starring && starring.length > 0 && (
+          <div className="mb-10">
+            <h2 className="font-heading text-xl text-white tracking-wide mb-3">Starring</h2>
+            <div className="flex flex-wrap gap-2">
+              {starring.map((actor, i) => (
+                <span key={i} className="text-sm text-muted-foreground bg-secondary/60 rounded px-3 py-1 border border-border/40 hover:border-brand-700/40 hover:text-brand-300 transition-colors cursor-default">
+                  {actor}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Trailer */}
+        {trailer && (
+          <div className="mb-10">
+            <h2 className="font-heading text-xl text-white tracking-wide mb-3">Trailer</h2>
+            <div className="rounded-lg overflow-hidden border border-white/5 bg-black" style={{ aspectRatio: "16/9", maxWidth: "640px" }}>
+              <iframe src={trailer} className="w-full h-full border-0" allowFullScreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" title={`${title} Trailer`} />
             </div>
           </div>
         )}

@@ -1,97 +1,67 @@
 // ─── Navigation / Config ──────────────────────────────────────────────────────
-export type NavItem = {
-  title: string;
-  href: string;
-  disabled?: boolean;
-};
-
+export type NavItem = { title: string; href: string; disabled?: boolean };
 export type MainNavItem = NavItem;
-
 export type SiteConfig = {
-  name: string;
-  description: string;
-  url: string;
+  name: string; description: string; url: string;
   links: { twitter: string; github: string };
   mainNav: { title: string; href: string }[];
 };
 
-// ─── Xyra Stream API — shared primitives ─────────────────────────────────────
+// ─── Xyra API types ───────────────────────────────────────────────────────────
 
-/** A drama card as returned by /home, /popular, /latest, /search, etc. */
 export interface XyraDramaCard {
-  id: string;           // e.g. "drama-detail/some-drama-slug"
+  id: string;
   title: string;
   image: string;
   url?: string;
-  status?: string;      // "Ongoing" | "Completed" | "Upcoming"
-  type?: string;        // "KDrama" | "Movie" etc.
+  status?: string;
+  type?: string;
 }
 
-/** An episode entry inside /info */
 export interface XyraEpisode {
-  id: string;           // episode slug — used for /stream
+  id: string;           // episode_id from /info — use as-is for /stream
   title: string;
   episode: number;
   subType: "SUB" | "DUB" | "RAW";
   releaseDate: string;
-  url?: string;
 }
 
-/** Full drama info from /info */
+/** Full drama info from /info endpoint */
 export interface XyraDramaInfo {
-  id: string;
+  id: string;           // drama slug
   title: string;
-  image: string;
-  description: string;
+  image: string;        // mapped from API's "thumbnail"
+  description: string;  // mapped from API's "synopsis"
   otherNames?: string[];
   genres?: string[];
-  releaseDate?: number | string;
+  releaseDate?: number;
   status?: "ongoing" | "completed" | "upcoming";
   episodes?: XyraEpisode[];
+  // Extra fields from /info
+  country?: string;
+  starring?: string[];
+  duration?: string;
+  rating?: string;
+  trailer?: string;
 }
 
-/** A streaming source */
-export interface XyraSource {
-  url: string;
-  isM3U8: boolean;
-  quality?: string;
-}
-
-/** Subtitle track */
-export interface XyraSubtitle {
-  url: string;
-  lang: string;
-}
-
-/** /stream response */
+export interface XyraSource { url: string; isM3U8: boolean; quality?: string }
+export interface XyraSubtitle { url: string; lang: string }
 export interface XyraStreamResult {
   sources: XyraSource[];
-  subtitles?: XyraSubtitle[];
+  subtitles: XyraSubtitle[];
   embedUrl?: string;
 }
 
-/** Paginated wrapper used by /search, /popular, /latest, /ongoing, etc. */
-export interface XyraPaged<T> {
-  currentPage: number;
-  hasNextPage: boolean;
-  results: T[];
-}
+export interface XyraPaged<T> { currentPage: number; hasNextPage: boolean; results: T[] }
 
-// ─── Internal aliases (keeps existing code working) ──────────────────────────
-export type Featured    = XyraDramaCard;
-export type TopAiring   = XyraPaged<XyraDramaCard>;
-export type Recent      = XyraPaged<XyraDramaCard>;
-export type Search      = XyraPaged<XyraDramaCard>;
+// ─── Internal aliases ─────────────────────────────────────────────────────────
+export type Featured  = XyraDramaCard;
+export type TopAiring = XyraPaged<XyraDramaCard>;
+export type Recent    = XyraPaged<XyraDramaCard>;
+export type Search    = XyraPaged<XyraDramaCard>;
 
 export interface EpisodeInfo {
-  title: string;
-  id: string;
-  dramaId: string;
-  number: number;
-  downloadLink: string;
-  episodes: {
-    next: string | undefined;
-    previous: string | undefined;
-    list: { value: string; label: string }[];
-  };
+  title: string; id: string; dramaId: string; number: number; downloadLink: string;
+  episodes: { next?: string; previous?: string; list: { value?: string; label?: string }[] };
 }
