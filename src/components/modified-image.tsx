@@ -10,19 +10,13 @@ type Props = ImageProps & {
 
 export function WithErrorImage({ className, errorText, src, ...props }: Props) {
   const [imgSrc, setImgSrc] = useState(src);
-  const [isLoading, setIsLoading] = useState(true);
 
   return (
     <NextImage
       {...props}
       src={imgSrc}
-      className={cn(
-        className,
-        isLoading ? "scale-105 blur-sm" : "scale-100 blur-0",
-        "transition-all duration-500",
-      )}
+      className={cn(className)}
       onError={() => setImgSrc("/placeholder.svg")}
-      onLoad={() => setIsLoading(false)}
       unoptimized
     />
   );

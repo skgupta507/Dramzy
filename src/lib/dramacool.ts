@@ -113,23 +113,50 @@ type XyraEpisodeRaw = {
  * Returns { success, data: { serverName: { embeded_link, m3u8, stream, sub } }, has_m3u8 }
  * OR on fallback: { success, data: { iframe_only: { embeded_link } } }
  */
-type XyraStreamRaw = {
+/** Raw stream fetch — returns the FULL JSON without unwrapping json.data
+ *  because /stream has top-level fields (has_m3u8, embed_iframe_url) we need */
+async function xyraGetStream(episodeId: string): Promise<XyraStreamFullResponse | null> {
+  const qs = new URLSearchParams({ api_key: API_KEY, episode_id: episodeId });
+  const url = `${BASE_URL}/stream?${qs}`;
+  try {
+    const res = await fetch(url, { method: "GET", cache: "no-store" });
+    if (!res.ok) {
+      console.error(`[Xyra] GET /stream → HTTP ${res.status} (episode_id: ${episodeId})`);
+      return null;
+    }
+    return (await res.json()) as XyraStreamFullResponse;
+  } catch (err: unknown) {
+    console.error(`[Xyra] GET /stream:`, err);
+    return null;
+  }
+}
+
+/** Shape of a single server entry in the stream response */
+type XyraServerData = {
+  embeded_link?: string;
+  stream?: string;
+  sub?: string;
+  m3u8?: boolean;
+  embed_only?: boolean;
+  skipped?: boolean;
+  error?: string;
+};
+
+/** Full /stream response — do NOT unwrap, we need top-level fields */
+type XyraStreamFullResponse = {
+  success?: boolean;
   has_m3u8?: boolean;
-  server_url?: string;
+  episode_url?: string;
   embed_iframe_url?: string;
-  data?: Record<string, {
-    embeded_link?: string;
-    stream?: string;
-    sub?: string;
-    m3u8?: boolean;
-    embed_only?: boolean;
-    skipped?: boolean;
-    error?: string;
-  }>;
-  // Legacy flat response format
+  server_url?: string;
+  data?: Record<string, XyraServerData>;
+  // Legacy flat response format (older API versions)
   sources?: Array<{ url?: string; isM3U8?: boolean; quality?: string; file?: string }>;
   embedUrl?: string; embed_url?: string; iframe?: string;
-  // Episode metadata (if returned)
+};
+
+/** Alias used for episode metadata (kept for getEpisodeInfo compat) */
+type XyraStreamRaw = XyraStreamFullResponse & {
   title?: string;
   number?: number | string;
   dramaId?: string; drama_id?: string;
@@ -315,9 +342,9 @@ export async function getDramaInfo(slug: string): Promise<XyraDramaInfo | null> 
     duration: raw.duration,
     rating: raw.rating,
     trailer: raw.trailer,
-    // Episodes: use normaliseEpisode which reads episode_id (the correct field)
+    // Episodes: API returns newest-first; reverse so index 0 = Episode 1
     episodes: Array.isArray(raw.episodes)
-      ? raw.episodes.map((e, i) => normaliseEpisode(e, i))
+      ? [...raw.episodes].reverse().map((e, i) => normaliseEpisode(e, i))
       : [],
   };
 }
@@ -329,92 +356,112 @@ export async function getDramaInfo(slug: string): Promise<XyraDramaInfo | null> 
  *
  * Returns sources array OR embedUrl from the server data.
  */
+// Best embed provider priority (most reliable first for iframe fallback)
+const EMBED_PRIORITY = ["streamwish", "dwish", "filelions", "dlions", "vidbasic", "standard", "iframe_only"];
+
 export async function getEpisodeSources(episodeId: string): Promise<XyraStreamResult | null> {
-  const raw = await xyraGet<XyraStreamRaw>("stream", { episode_id: episodeId }, { cache: "no-store" } as RequestInit);
-  if (!raw) return null;
+  const cleanId = episodeId.startsWith("http") ? toSlug(episodeId) : episodeId;
+
+  // Use dedicated stream fetcher — preserves full response (has_m3u8, embed_iframe_url etc.)
+  const full = await xyraGetStream(cleanId);
+  if (!full) return null;
 
   const sources: XyraStreamResult["sources"] = [];
+  const subtitles: XyraStreamResult["subtitles"] = [];
   let embedUrl: string | undefined;
 
-  // The API returns data as { serverName: { embeded_link, stream, m3u8 } }
-  if (raw.data && typeof raw.data === "object") {
-    for (const [, serverData] of Object.entries(raw.data)) {
-      if (serverData.skipped) continue;
+  // ── Parse server data (API returns { data: { serverName: {...} } }) ─────────
+  const serverMap = full.data;
 
-      // Direct HLS stream
-      if (serverData.stream && serverData.m3u8) {
-        sources.push({ url: serverData.stream, isM3U8: true });
+  if (serverMap && typeof serverMap === "object") {
+    const entries = Object.entries(serverMap);
+
+    // Collect direct HLS streams
+    for (const [, srv] of entries) {
+      if (srv.skipped) continue;
+      if (srv.stream && srv.m3u8) {
+        sources.push({ url: srv.stream, isM3U8: true });
       }
-      // Embed link as fallback
-      if (!embedUrl && serverData.embeded_link) {
-        embedUrl = serverData.embeded_link;
+      if (srv.sub) subtitles.push({ url: srv.sub, lang: "English" });
+    }
+
+    // Pick the best embed link by provider priority
+    for (const priority of EMBED_PRIORITY) {
+      const match = entries.find(([name]) => name.toLowerCase().includes(priority));
+      if (match && !match[1].skipped && match[1].embeded_link) {
+        embedUrl = match[1].embeded_link;
+        break;
       }
+    }
+    // Fallback: first non-skipped server with an embed link
+    if (!embedUrl) {
+      const fallback = entries.find(([, d]) => !d.skipped && d.embeded_link);
+      if (fallback) embedUrl = fallback[1].embeded_link;
     }
   }
 
-  // Legacy flat format fallback
-  if (sources.length === 0 && raw.sources) {
-    for (const s of raw.sources) {
-      const url = s.url ?? s.file ?? "";
+  // ── Legacy flat format (older API versions) ───────────────────────────────
+  if (sources.length === 0 && full.sources) {
+    for (const s of full.sources) {
+      const url = s.url ?? "";
       if (url) sources.push({ url, isM3U8: s.isM3U8 ?? url.includes(".m3u8") });
     }
   }
 
-  // Use embed_iframe_url from the API response as the iframe fallback
+  // ── Top-level embed fallback from full response ────────────────────────────
   if (!embedUrl) {
-    embedUrl = raw.embed_iframe_url ?? raw.embedUrl ?? raw.embed_url ?? raw.iframe;
+    embedUrl = full.embed_iframe_url ?? full.embedUrl ?? full.embed_url ?? full.iframe;
   }
 
-  return { sources, subtitles: [], embedUrl };
+  console.log(`[Stream] episode=${cleanId} | sources=${sources.length} | embedUrl=${embedUrl ? "✓" : "✗"} | has_m3u8=${full.has_m3u8}`);
+
+  return { sources, subtitles, embedUrl };
 }
 
-/**
- * Get episode metadata for the watch page.
- * We derive this from the episode_id slug (no extra API call needed).
- * The /stream endpoint doesn't return episode metadata in a structured way.
- */
+
 export async function getEpisodeInfo(episodeSlug: string): Promise<EpisodeInfo> {
+  // episodeSlug from the URL e.g. "my-girlfriend-is-an-alien-2-2022-episode-1"
   // Parse episode number from slug
   const epMatch =
     episodeSlug.match(/episode[-_](\d+)/i) ??
     episodeSlug.match(/ep[-_](\d+)/i);
   const epNumber = Number(epMatch?.[1] ?? 1);
 
-  // Strip episode suffix to get drama slug
+  // Strip episode suffix to recover drama slug
   const dramaSlug = episodeSlug
     .replace(/-episode-\d+.*/i, "")
     .replace(/-ep-\d+.*/i, "");
   const dramaId = toDramaId(dramaSlug);
 
-  // Derive a readable title from the drama slug
-  const title = dramaSlug
+  // getDramaInfo is cached — fast on second call (same page visit)
+  let title = dramaSlug
     .split("-")
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(" ");
-
-  // Try to get the actual drama title + nav links from the drama info
-  // This is cached, so subsequent episode watches are fast
-  let finalTitle = title;
   let nextId: string | undefined;
   let prevId: string | undefined;
 
   try {
     const info = await getDramaInfo(dramaSlug);
-    if (info?.title) finalTitle = info.title;
+    if (info?.title) title = info.title;
+
     if (info?.episodes && info.episodes.length > 0) {
-      const idx = info.episodes.findIndex((e) => e.id === episodeSlug);
+      // Find this episode by matching episode number
+      const idx = info.episodes.findIndex(
+        (e) => e.episode === epNumber || e.id === episodeSlug
+      );
       if (idx !== -1) {
         nextId = info.episodes[idx + 1]?.id;
-        prevId = info.episodes[idx - 1]?.id;
+        prevId = idx > 0 ? info.episodes[idx - 1]?.id : undefined;
       }
     }
   } catch {
-    // Fine — we have enough from the slug
+    // Silently continue — we have enough from the slug
   }
 
   return {
     id: episodeSlug,
-    title: finalTitle,
+    title,
     dramaId,
     number: epNumber,
     downloadLink: "",

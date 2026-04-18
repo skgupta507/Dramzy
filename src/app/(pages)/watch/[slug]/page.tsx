@@ -1,6 +1,7 @@
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { VideoPlayerWrapper } from "@/components/video-player-wrapper";
+import { EmbedPlayer } from "@/components/embed-player";
 import { db } from "@/db";
 import { auth } from "@/lib/auth";
 import { getEpisodeInfo, getEpisodeSources } from "@/lib/dramacool";
@@ -112,41 +113,43 @@ async function PlayerSection({ episodeId, dramaId, number }: { episodeId: string
     seekTo = progress ? Number(progress.seconds) : undefined;
   }
 
+  const embedUrl = sources?.embedUrl;
   const hlsSource = sources?.sources.find((s) => s.isM3U8) ?? sources?.sources[0];
 
-  // Embed iframe fallback
-  if (!hlsSource && sources?.embedUrl) {
+  // Embed iframe is most compatible for DramaCool streams
+  // (avoids SSL cert issues, adblocker conflicts, and player quirks)
+  if (embedUrl) {
     return (
       <AspectRatio ratio={16 / 9}>
-        <iframe src={sources.embedUrl} className="w-full h-full border-0"
-          allowFullScreen allow="autoplay; fullscreen; encrypted-media" title={`Episode ${number}`} />
+        <EmbedPlayer src={embedUrl} title={`Episode ${number}`} />
       </AspectRatio>
     );
   }
 
-  // No sources at all
-  if (!hlsSource) {
+  // Direct HLS as fallback when no embed is available
+  if (hlsSource) {
     return (
       <AspectRatio ratio={16 / 9}>
-        <div className="size-full bg-[#0a0c12] flex items-center justify-center">
-          <div className="text-center space-y-3 px-8">
-            <Flame className="w-10 h-10 text-brand-700 mx-auto" strokeWidth={1.5} />
-            <p className="font-heading text-sm text-white tracking-wider">NO STREAM AVAILABLE</p>
-            <p className="text-xs text-muted-foreground max-w-xs">
-              This episode has no streaming sources yet. The stream may be processing — try again in a moment.
-            </p>
-          </div>
-        </div>
+        <VideoPlayerWrapper slug={episodeId} dramaId={dramaId} number={number} seekTo={seekTo} url={hlsSource.url} />
       </AspectRatio>
     );
   }
 
   return (
     <AspectRatio ratio={16 / 9}>
-      <VideoPlayerWrapper slug={episodeId} dramaId={dramaId} number={number} seekTo={seekTo} url={hlsSource.url} />
+      <div className="size-full bg-[#0a0c12] flex items-center justify-center">
+        <div className="text-center space-y-3 px-8">
+          <Flame className="w-10 h-10 text-brand-700 mx-auto" strokeWidth={1.5} />
+          <p className="font-heading text-sm text-white tracking-wider">NO STREAM AVAILABLE</p>
+          <p className="text-xs text-muted-foreground max-w-xs">
+            No streaming source found for this episode. Try again later.
+          </p>
+        </div>
+      </div>
     </AspectRatio>
   );
 }
+
 
 async function ControlButtons({ episodeId }: { episodeId: string }) {
   const info = await cachedEpisodeInfo(episodeId);
