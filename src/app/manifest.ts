@@ -1,31 +1,44 @@
 import type { MetadataRoute } from "next";
 
-export default function manifest() {
-  return json;
+export default function manifest(): MetadataRoute.Manifest {
+  return {
+    name: "Dramzy",
+    short_name: "Dramzy",
+    description: "Stream the finest Korean dramas — free forever.",
+    start_url: "/home",
+    display: "standalone",
+    background_color: "#0f1117",
+    theme_color: "#0ea5e9",
+    orientation: "portrait",
+    categories: ["entertainment", "video"],
+    icons: [
+      {
+        src: "/favicon.svg",
+        sizes: "any",
+        type: "image/svg+xml",
+        purpose: "any maskable",
+      },
+      {
+        src: "/android-chrome-192x192.png",
+        sizes: "192x192",
+        type: "image/png",
+        purpose: "any",
+      },
+      {
+        src: "/android-chrome-512x512.png",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "maskable",
+      },
+    ],
+    screenshots: [
+      {
+        src: "/screenshot-wide.png",
+        sizes: "1280x720",
+        type: "image/png",
+        // @ts-ignore
+        form_factor: "wide",
+      },
+    ],
+  };
 }
-
-const json = {
-  name: "K-Next",
-  short_name: "K-Next",
-  description: "Ad-free kdrama streaming site built with Nextjs 14",
-  theme_color: "#FFFFFF",
-  background_color: "#FFFFFF",
-  display: "standalone",
-  orientation: "portrait",
-  id: "/",
-  scope: "/",
-  start_url: "/",
-  icons: [
-    {
-      src: "/android-chrome-192x192.png",
-      sizes: "192x192",
-      type: "image/png",
-      purpose: "maskable",
-    },
-    {
-      src: "/android-chrome-512x512.png",
-      sizes: "512x512",
-      type: "image/png",
-    },
-  ],
-} satisfies MetadataRoute.Manifest;
