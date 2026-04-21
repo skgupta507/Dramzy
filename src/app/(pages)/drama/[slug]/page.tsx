@@ -20,7 +20,7 @@ import { and, asc, eq } from "drizzle-orm";
 import {
   Flame, Play, BookmarkPlus, BookmarkMinus,
   Calendar, Film, Star, Globe, Clock, ChevronRight, Tv2,
-} from "lucide-react";
+} from "@/components/icons";
 import type { Metadata, ResolvingMetadata } from "next";
 import { revalidatePath } from "next/cache";
 import Image from "next/image";
@@ -28,11 +28,11 @@ import Link from "next/link";
 import { Suspense, cache } from "react";
 import { SubmitButton } from "./client";
 
-interface PageProps { params: Promise<{ slug: string }> }
+interface PageProps { params: { slug: string } }
 
 export async function generateMetadata({ params }: PageProps, parent: ResolvingMetadata): Promise<Metadata> {
   try {
-    const { slug } = await params;
+    const { slug } = params;
     const drama = await getDramaInfo(toSlug(decodeURIComponent(slug)));
     if (!drama) throw new Error();
     return {
@@ -47,7 +47,7 @@ export async function generateMetadata({ params }: PageProps, parent: ResolvingM
 }
 
 export default async function Page({ params }: PageProps) {
-  const { slug } = await params;
+  const { slug } = params;
   const drama = await getDramaInfo(toSlug(decodeURIComponent(slug)));
   if (!drama) throw new Error("Drama not found");
 

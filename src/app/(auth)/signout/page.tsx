@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
-import { LogOut } from "lucide-react";
+import { LogOut } from "@/components/icons";
 import { SignOutButtons } from "./buttons";
 
 export default function SignOutPage() {

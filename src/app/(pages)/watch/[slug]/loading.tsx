@@ -1,4 +1,4 @@
-import { Flame } from "lucide-react";
+import { Flame } from "@/components/icons";
 
 export default function Loading() {
   return (

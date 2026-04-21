@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { getFeatured, getRecent, getTrending, getUpcoming } from "@/lib/dramacool";
 import { getWatchLists } from "@/lib/helpers/server";
 import { generateMetadata } from "@/lib/utils";
-import { ChevronRight, Play, Info, Zap, TrendingUp, Clock, CalendarDays, Bookmark, Tv2, Star } from "lucide-react";
+import { ChevronRight, Play, Info, Zap, TrendingUp, Clock, CalendarDays, Bookmark, Tv2, Star } from "@/components/icons";
 import Image from "next/image";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -266,15 +266,18 @@ async function HeroBanner() {
 async function TrendingGrid() {
   const data = await getTrending();
   if (!data.results.length) return <ApiUnavailableRow />;
-  const items = data.results.slice(0, 8);
+  const items = data.results.slice(0, 20);
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 lg:gap-4">
-      {items.map((drama, i) => (
-        <DramaCard key={i}
-          data={{ title: drama.title, image: drama.image, description: drama.status ?? "", slug: drama.id }}
-          aspectRatio="portrait" width={200} height={280} className="w-full" />
-      ))}
-    </div>
+    <ScrollArea>
+      <div className="flex gap-3 pb-4">
+        {items.map((drama, i) => (
+          <DramaCard key={i}
+            data={{ title: drama.title, image: drama.image, description: drama.status ?? "", slug: drama.id }}
+            className="w-28 shrink-0 lg:w-[160px]" aspectRatio="portrait" width={160} height={230} />
+        ))}
+      </div>
+      <ScrollBar orientation="horizontal" />
+    </ScrollArea>
   );
 }
 

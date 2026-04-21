@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeft, Zap } from "lucide-react";
+import { ArrowLeft, Zap } from "@/components/icons";
 import { buttonVariants } from "@/components/ui/button";
 import { UserAuthForm } from "./user-auth-form";
 

@@ -1,5 +1,5 @@
 import { Metadata } from "next";
-import { Flame } from "lucide-react";
+import { Flame } from "@/components/icons";
 
 export const metadata: Metadata = {
   title: "Terms & Conditions",

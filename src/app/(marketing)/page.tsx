@@ -1,6 +1,6 @@
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ChevronRight, Play, Tv2, Shield, Zap } from "lucide-react";
+import { ChevronRight, Play, Tv2, Shield, Zap } from "@/components/icons";
 import Link from "next/link";
 
 export default function MarketingPage() {

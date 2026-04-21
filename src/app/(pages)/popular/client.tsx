@@ -3,7 +3,7 @@
 import { Card } from "@/components/card";
 import { Button } from "@/components/ui/button";
 import type { Featured } from "@/types";
-import { Loader2, ChevronDown } from "lucide-react";
+import { Loader2, ChevronDown } from "@/components/icons";
 import { useState, useTransition } from "react";
 import { loadMore } from "./actions";
 

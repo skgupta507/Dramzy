@@ -12,7 +12,7 @@ import { z } from "zod";
 // Next.js 15: cookies() is now async
 async function authOrCookie() {
   const session = await auth();
-  const cookieStore = await cookies();
+  const cookieStore = cookies();
   return [session, cookieStore] as const;
 }
 

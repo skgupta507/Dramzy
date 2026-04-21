@@ -1,5 +1,5 @@
 import { Metadata } from "next";
-import { Shield, Mail, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Shield, Mail, AlertTriangle, CheckCircle2 } from "@/components/icons";
 import Link from "next/link";
 
 export const metadata: Metadata = {

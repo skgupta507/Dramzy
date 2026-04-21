@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Github, Twitter, Zap } from "lucide-react";
+import { Github, Twitter, Zap } from "@/components/icons";
 
 const SOCIAL_LINKS = [
   { id: "twitter", icon: Twitter, href: "https://twitter.com", label: "Twitter" },

@@ -1,78 +1,124 @@
-import {
-  ArrowLeft,
-  ArrowRight,
-  Bookmark,
-  ChevronLeftSquare,
-  DatabaseBackup,
-  FolderSync,
-  Info,
-  LogOut,
-  type LucideProps,
-  Minus,
-  Moon,
-  Play,
-  Plus,
-  Search,
-  Sun,
-  Tv,
-  X,
-  Check,
-} from "lucide-react";
+/**
+ * Dramzy Icons — inline SVG, zero external dependencies.
+ *
+ * Replaces lucide-react entirely to avoid Webpack chunk resolution
+ * failures in Next.js 15.5. Every icon is a plain React SVG component.
+ */
 
-import { cn } from "@/lib/utils";
+import type { SVGProps } from "react";
 
-// Inline Discord SVG — replaces @irsyadadl/paranoid IconBrandDiscord
-const IconBrandDiscord = ({ className, ...props }: LucideProps) => (
-  <svg
-    width="1em"
-    height="1em"
-    viewBox="0 0 24 24"
-    fill="currentColor"
-    className={cn("inline-block", className)}
-    aria-hidden="true"
-    {...(props as React.SVGProps<SVGSVGElement>)}
-  >
-    <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057c.002.022.015.043.03.053a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03Z" />
-  </svg>
-);
+type IconProps = SVGProps<SVGSVGElement> & { size?: number };
 
-// Inline Google SVG
-const DashiconsGoogle = ({ className, ...props }: LucideProps) => (
-  <svg
-    width="1em"
-    height="1em"
-    className={cn("fill-foreground", className)}
-    viewBox="0 0 20 20"
-    xmlns="http://www.w3.org/2000/svg"
-    aria-hidden="true"
-    {...(props as React.SVGProps<SVGSVGElement>)}
-  >
-    <path
-      fillRule="evenodd"
-      d="M17.6 8.5h-7.5v3h4.4c-.4 2.1-2.3 3.5-4.4 3.4c-2.6-.1-4.6-2.1-4.7-4.7c-.1-2.7 2-5 4.7-5.1c1.1 0 2.2.4 3.1 1.2l2.3-2.2C14.1 2.7 12.1 2 10.2 2c-4.4 0-8 3.6-8 8s3.6 8 8 8c4.6 0 7.7-3.2 7.7-7.8c-.1-.6-.1-1.1-.3-1.7z"
-      clipRule="evenodd"
-    />
-  </svg>
-);
+function icon(path: string, opts?: { fill?: boolean; viewBox?: string }) {
+  return function Icon({ size = 24, strokeWidth = 2, className, style, ...rest }: IconProps) {
+    return (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width={size}
+        height={size}
+        viewBox={opts?.viewBox ?? "0 0 24 24"}
+        fill={opts?.fill ? "currentColor" : "none"}
+        stroke={opts?.fill ? "none" : "currentColor"}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={className}
+        style={style}
+        {...rest}
+        dangerouslySetInnerHTML={{ __html: path }}
+      />
+    );
+  };
+}
 
+export const Play            = icon('<polygon points="6 3 20 12 6 21 6 3"/>');
+export const Pause           = icon('<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>');
+export const Flame           = icon('<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 3z"/>');
+export const Search          = icon('<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>');
+export const X               = icon('<path d="M18 6 6 18"/><path d="m6 6 12 12"/>');
+export const ChevronRight    = icon('<path d="m9 18 6-6-6-6"/>');
+export const ChevronLeft     = icon('<path d="m15 18-6-6 6-6"/>');
+export const ChevronDown     = icon('<path d="m6 9 6 6 6-6"/>');
+export const ArrowLeft       = icon('<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>');
+export const ArrowRight      = icon('<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>');
+export const Info            = icon('<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>');
+export const AlertTriangle   = icon('<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>');
+export const CheckCircle2    = icon('<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>');
+export const Circle          = icon('<circle cx="12" cy="12" r="10"/>');
+export const Check           = icon('<path d="M20 6 9 17l-5-5"/>');
+export const Loader2         = icon('<path d="M21 12a9 9 0 1 1-6.219-8.56"/>');
+export const RefreshCw       = icon('<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>');
+export const RotateCcw       = icon('<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>');
+export const Moon            = icon('<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>');
+export const Sun             = icon('<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>');
+export const LogOut          = icon('<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>');
+export const Eye             = icon('<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>');
+export const EyeOff          = icon('<path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" y1="2" x2="22" y2="22"/>');
+export const Bookmark        = icon('<path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/>');
+export const BookmarkPlus    = icon('<path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/><line x1="12" y1="7" x2="12" y2="13"/><line x1="9" y1="10" x2="15" y2="10"/>');
+export const BookmarkMinus   = icon('<path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/><line x1="9" y1="10" x2="15" y2="10"/>');
+export const Download        = icon('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>');
+export const Tv2             = icon('<path d="M7 21h10"/><rect x="2" y="3" width="20" height="14" rx="2"/>');
+export const Heart           = icon('<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>');
+export const Star            = icon('<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>');
+export const Shield          = icon('<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>');
+export const Zap             = icon('<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>');
+export const Mail            = icon('<rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>');
+export const Github          = icon('<path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/>');
+export const Twitter         = icon('<path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z"/>');
+export const TrendingUp      = icon('<polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>');
+export const Calendar        = icon('<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>');
+export const CalendarDays    = icon('<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>');
+export const Clock           = icon('<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>');
+export const Globe           = icon('<circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>');
+export const Film            = icon('<rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="2" y1="7" x2="7" y2="7"/><line x1="2" y1="17" x2="7" y2="17"/><line x1="17" y1="17" x2="22" y2="17"/><line x1="17" y1="7" x2="22" y2="7"/>');
+export const List            = icon('<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>');
+export const Plus            = icon('<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>');
+export const Share2          = icon('<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>');
+export const Tv              = icon('<rect x="2" y="7" width="20" height="15" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/>');
+
+// Namespace alias for code using Icons.play etc.
 export const Icons = {
-  logo: ChevronLeftSquare,
-  close: X,
-  moon: Moon,
-  sun: Sun,
-  play: Play,
-  arrowLeft: ArrowLeft,
-  arrowRight: ArrowRight,
-  tv: Tv,
-  info: Info,
-  logout: LogOut,
-  search: Search,
-  bookmark: Bookmark,
-  discord: IconBrandDiscord,
-  google: DashiconsGoogle,
-  plus: Plus,
-  minus: Minus,
-  backup: DatabaseBackup,
-  sync: FolderSync,
-  check: Check,
-};
+  play:         Play,
+  check:        Check,
+  plus:         Plus,
+  search:       Search,
+  loader:       Loader2,
+  moon:         Moon,
+  sun:          Sun,
+  x:            X,
+  flame:        Flame,
+  zap:          Zap,
+  logOut:       LogOut,
+  arrowLeft:    ArrowLeft,
+  arrowRight:   ArrowRight,
+  chevronRight: ChevronRight,
+  chevronLeft:  ChevronLeft,
+  chevronDown:  ChevronDown,
+  eye:          Eye,
+  eyeOff:       EyeOff,
+  heart:        Heart,
+  star:         Star,
+  shield:       Shield,
+  tv:           Tv2,
+  bookmark:     Bookmark,
+  bookmarkPlus: BookmarkPlus,
+  bookmarkMinus:BookmarkMinus,
+  info:         Info,
+  download:     Download,
+  mail:         Mail,
+  github:       Github,
+  twitter:      Twitter,
+  rotateLeft:   RotateCcw,
+  refreshCw:    RefreshCw,
+  list:         List,
+  trendingUp:   TrendingUp,
+  calendar:     CalendarDays,
+  clock:        Clock,
+  globe:        Globe,
+  film:         Film,
+  alertTriangle:AlertTriangle,
+  checkCircle:  CheckCircle2,
+  circle:       Circle,
+  share:        Share2,
+} as const;

@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Flame, RotateCcw } from "lucide-react";
+import { Flame, RotateCcw } from "@/components/icons";
 import { useEffect } from "react";
 
 export default function Error({

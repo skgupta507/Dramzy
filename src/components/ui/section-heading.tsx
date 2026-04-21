@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight } from "@/components/icons";
 import Link from "next/link";
 import type { ReactNode } from "react";
 

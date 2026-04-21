@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { siteConfig } from "@/config/site";
 import { cn } from "@/lib/utils";
-import { LogOut, Search, Tv2, Zap } from "lucide-react";
+import { LogOut, Search, Tv2, Zap } from "@/components/icons";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";

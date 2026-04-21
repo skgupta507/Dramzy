@@ -1,5 +1,5 @@
 import { Metadata } from "next";
-import { Tv2, Eye, Shield, Heart } from "lucide-react";
+import { Tv2, Eye, Shield, Heart } from "@/components/icons";
 import Link from "next/link";
 
 export const metadata: Metadata = {

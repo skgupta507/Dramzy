@@ -3,7 +3,7 @@
 import { Button, type ButtonProps } from "@/components/ui/button";
 import { updateWatchlist } from "@/lib/actions";
 import { cn } from "@/lib/utils";
-import { CheckCircle2, Circle } from "lucide-react";
+import { CheckCircle2, Circle } from "@/components/icons";
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import { toast } from "sonner";
