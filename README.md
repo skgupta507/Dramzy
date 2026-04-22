@@ -4,7 +4,6 @@
 
 Dramzy is a full-stack K-drama streaming platform built with Next.js 15, powered by the Xyra Stream API, and styled for a premium cinematic experience. Watchlists, progress tracking, OAuth authentication, and a seamless video player — all in one.
 
----
 
 ## ✨ Features
 
@@ -62,7 +61,6 @@ Dramzy is a full-stack K-drama streaming platform built with Next.js 15, powered
 | `/signin` | OAuth sign in |
 | `/signout` | Sign out |
 
----
 
 ## 🛠 Tech Stack
 
@@ -79,7 +77,6 @@ Dramzy is a full-stack K-drama streaming platform built with Next.js 15, powered
 | API | Xyra Stream API (dramacool data) |
 | Deployment | Vercel |
 
----
 
 ## ⚙️ Setup
 
@@ -130,7 +127,6 @@ npm run db:push
 npm run dev          # runs on :1999
 ```
 
----
 
 ## 🔑 API Configuration
 
@@ -148,7 +144,6 @@ Dramzy uses the **Xyra Stream API** for all drama data and streaming.
 
 Get your free API key from the [Xyra Discord](https://github.com/junioralive/dramacool-api).
 
----
 
 ## 📁 Project Structure
 
@@ -176,7 +171,6 @@ src/
     └── globals.css      Dramzy theme
 ```
 
----
 
 ## 🎨 Design System
 
@@ -190,7 +184,6 @@ src/
 | Heading font | Bebas Neue |
 | Body font | Inter |
 
----
 
 ## 🚀 Deployment (Vercel)
 
@@ -201,12 +194,10 @@ vercel deploy
 
 Required Vercel env vars: same as `.env.example` — `DATABASE_URL`, `NEXTAUTH_SECRET`, `XYRA_API_KEY`, OAuth credentials.
 
----
 
 ## ⚖️ Legal
 
 Dramzy aggregates publicly available links and metadata. We do not host video files. See `/dmca` for our takedown policy.
 
----
 
-*Crafted by **Sunil** · Powered by Xyra Stream API*
+*Crafted by **Sunil** · Powered by Dramzy API*

@@ -415,7 +415,27 @@ export async function getEpisodeSources(episodeId: string): Promise<XyraStreamRe
 
   console.log(`[Stream] episode=${cleanId} | sources=${sources.length} | embedUrl=${embedUrl ? "✓" : "✗"} | has_m3u8=${full.has_m3u8}`);
 
-  return { sources, subtitles, embedUrl };
+  // Collect ALL embed URLs in priority order for client-side fallback
+  const allEmbeds: string[] = [];
+  if (serverMap && typeof serverMap === "object") {
+    const entries = Object.entries(serverMap);
+    // Priority order first
+    for (const priority of EMBED_PRIORITY) {
+      const match = entries.find(([name]) => name.toLowerCase().includes(priority));
+      if (match && !match[1].skipped && match[1].embeded_link && !allEmbeds.includes(match[1].embeded_link)) {
+        allEmbeds.push(match[1].embeded_link);
+      }
+    }
+    // Then any remaining
+    for (const [, d] of entries) {
+      if (!d.skipped && d.embeded_link && !allEmbeds.includes(d.embeded_link)) {
+        allEmbeds.push(d.embeded_link);
+      }
+    }
+  }
+  if (embedUrl && !allEmbeds.includes(embedUrl)) allEmbeds.unshift(embedUrl);
+
+  return { sources, subtitles, embedUrl, allEmbeds };
 }
 
 

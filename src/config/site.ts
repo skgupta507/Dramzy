@@ -10,9 +10,13 @@ export const siteConfig: SiteConfig = {
     github: "https://github.com/dramzy",
   },
   mainNav: [
-    { title: "Home", href: "/home" },
-    { title: "Popular", href: "/popular" },
-    { title: "Search", href: "/search" },
+    { title: "Home",     href: "/home" },
+    { title: "Popular",  href: "/popular" },
+    { title: "Korean",   href: "/dramas/korean" },
+    { title: "Chinese",  href: "/dramas/chinese" },
+    { title: "Thai",     href: "/dramas/thai" },
+    { title: "Japanese", href: "/dramas/japanese" },
+    { title: "Search",   href: "/search" },
   ],
 };
 

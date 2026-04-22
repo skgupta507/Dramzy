@@ -103,9 +103,9 @@ export default function Page() {
           />
           <div className="flex flex-wrap gap-2.5">
             {GENRES.map((g) => (
-              <Link key={g.label} href={`/search?q=${encodeURIComponent(g.label)}`}>
+              <Link key={g.label} href={g.href}>
                 <div className={`px-4 py-2.5 rounded-lg border text-sm font-medium transition-all hover:scale-105 ${g.color}`}>
-                  <span className="mr-2">{g.icon}</span>{g.label}
+                  {g.icon && <span className="mr-2">{g.icon}</span>}{g.label}
                 </div>
               </Link>
             ))}
@@ -339,16 +339,16 @@ async function WatchList() {
 
 // ─── Static data ──────────────────────────────────────────────────────────────
 const GENRES = [
-  { label: "Romance",  icon: "💕", color: "border-pink-700/40 bg-pink-950/20 text-pink-300 hover:border-pink-500/60" },
-  { label: "Thriller", icon: "🔪", color: "border-red-800/40 bg-red-950/20 text-red-300 hover:border-red-600/60" },
-  { label: "Fantasy",  icon: "✨", color: "border-violet-700/40 bg-violet-950/20 text-violet-300 hover:border-violet-500/60" },
-  { label: "Comedy",   icon: "😂", color: "border-yellow-700/40 bg-yellow-950/20 text-yellow-300 hover:border-yellow-500/60" },
-  { label: "Historical",icon:"🏯", color: "border-amber-700/40 bg-amber-950/20 text-amber-300 hover:border-amber-600/60" },
-  { label: "Sci-Fi",   icon: "🚀", color: "border-cyan-700/40 bg-cyan-950/20 text-cyan-300 hover:border-cyan-600/60" },
-  { label: "Action",   icon: "⚔️", color: "border-orange-700/40 bg-orange-950/20 text-orange-300 hover:border-orange-600/60" },
-  { label: "Mystery",  icon: "🔎", color: "border-slate-600/40 bg-slate-900/40 text-slate-300 hover:border-slate-500/60" },
-  { label: "Horror",   icon: "👻", color: "border-zinc-600/40 bg-zinc-900/40 text-zinc-300 hover:border-zinc-500/60" },
-  { label: "Medical",  icon: "🏥", color: "border-teal-700/40 bg-teal-950/20 text-teal-300 hover:border-teal-600/60" },
+  { label: "Romance",   icon: "💕", color: "border-pink-700/40 bg-pink-950/20 text-pink-300 hover:border-pink-500/60",       href: "/search?q=Romance" },
+  { label: "Thriller",  icon: "🔪", color: "border-red-800/40 bg-red-950/20 text-red-300 hover:border-red-600/60",           href: "/search?q=Thriller" },
+  { label: "Fantasy",   icon: "✨", color: "border-violet-700/40 bg-violet-950/20 text-violet-300 hover:border-violet-500/60", href: "/search?q=Fantasy" },
+  { label: "Comedy",    icon: "😂", color: "border-yellow-700/40 bg-yellow-950/20 text-yellow-300 hover:border-yellow-500/60", href: "/search?q=Comedy" },
+  { label: "Historical",icon: "🏯", color: "border-amber-700/40 bg-amber-950/20 text-amber-300 hover:border-amber-600/60",    href: "/search?q=Historical" },
+  { label: "🇰🇷 Korean",  icon: "",   color: "border-blue-700/40 bg-blue-950/20 text-blue-300 hover:border-blue-500/60",       href: "/dramas/korean" },
+  { label: "🇨🇳 Chinese", icon: "",   color: "border-red-700/40 bg-red-950/20 text-red-300 hover:border-red-500/60",           href: "/dramas/chinese" },
+  { label: "🇹🇭 Thai",    icon: "",   color: "border-green-700/40 bg-green-950/20 text-green-300 hover:border-green-500/60",   href: "/dramas/thai" },
+  { label: "🇯🇵 Japanese",icon: "",   color: "border-purple-700/40 bg-purple-950/20 text-purple-300 hover:border-purple-500/60", href: "/dramas/japanese" },
+  { label: "Action",    icon: "⚔️", color: "border-orange-700/40 bg-orange-950/20 text-orange-300 hover:border-orange-600/60", href: "/search?q=Action" },
 ];
 
 const STATS = [

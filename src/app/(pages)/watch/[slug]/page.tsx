@@ -57,8 +57,9 @@ export default async function Page({ params }: PageProps) {
 
   notify(`Watching: ${title} ep ${number}`).catch(() => {});
 
-  const embedUrl = sources?.embedUrl;
-  const hlsUrl   = sources?.sources.find((s) => s.isM3U8)?.url ?? sources?.sources[0]?.url;
+  const embedUrl  = sources?.embedUrl;
+  const allEmbeds = sources?.allEmbeds ?? [];
+  const hlsUrl    = sources?.sources.find((s) => s.isM3U8)?.url ?? sources?.sources[0]?.url;
 
   let seekTo: number | undefined;
   if (session) {
@@ -86,6 +87,7 @@ export default async function Page({ params }: PageProps) {
           <AspectRatio ratio={16 / 9}>
             <PlayerClient
               embedUrl={embedUrl}
+              allEmbeds={allEmbeds}
               hlsUrl={hlsUrl}
               slug={episodeId}
               dramaId={dramaId}
