@@ -2,11 +2,10 @@ import { Card } from "@/components/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { AspectRatio } from "@/components/ui/aspect-ratio";
-import { PlayerClient } from "@/components/player-client";
+import { WatchPlayer } from "./watch-player";
 import { db } from "@/db";
 import { auth } from "@/lib/auth";
-import { getEpisodeInfo, getEpisodeSources, getDramaInfo, getTrending } from "@/lib/dramacool";
+import { getEpisodeInfo, getDramaInfo, getTrending } from "@/lib/dramacool";
 import { toSlug } from "@/lib/slug";
 import { notify } from "@/lib/webhooks/slack";
 import { Info, List, Play, Flame } from "@/components/icons";
@@ -46,9 +45,8 @@ export async function generateMetadata(
 export default async function Page({ params }: PageProps) {
   const episodeId = normaliseRouteSlug(params.slug);
 
-  const [info, sources, session] = await Promise.all([
+  const [info, session] = await Promise.all([
     getEpisodeInfo(episodeId),
-    getEpisodeSources(episodeId),
     cachedAuth(),
   ]);
 
@@ -57,17 +55,7 @@ export default async function Page({ params }: PageProps) {
 
   notify(`Watching: ${title} ep ${number}`).catch(() => {});
 
-  const embedUrl  = sources?.embedUrl;
-  const allEmbeds = sources?.allEmbeds ?? [];
-  const hlsUrl    = sources?.sources.find((s) => s.isM3U8)?.url ?? sources?.sources[0]?.url;
 
-  let seekTo: number | undefined;
-  if (session) {
-    const prog = await db.query.progress.findFirst({
-      where: (t, { eq, and }) => and(eq(t.episodeSlug, episodeId), eq(t.userId, session.user.id)),
-    });
-    seekTo = prog ? Number(prog.seconds) : undefined;
-  }
 
   const [dramaResult, trendingResult] = await Promise.allSettled([
     getDramaInfo(dramaSlug),
@@ -84,17 +72,7 @@ export default async function Page({ params }: PageProps) {
       {/* ── Player ───────────────────────────────────────────────────────── */}
       <div className="bg-black">
         <div className="mx-auto max-w-6xl">
-          <AspectRatio ratio={16 / 9}>
-            <PlayerClient
-              embedUrl={embedUrl}
-              allEmbeds={allEmbeds}
-              hlsUrl={hlsUrl}
-              slug={episodeId}
-              dramaId={dramaId}
-              number={number}
-              seekTo={seekTo}
-            />
-          </AspectRatio>
+          <WatchPlayer episodeId={episodeId} />
         </div>
       </div>
 

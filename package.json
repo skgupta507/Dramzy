@@ -3,9 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 1999",
     "build": "next build",
-    "fresh": "node -e \"require('fs').rmSync('.next',{recursive:true,force:true})\" && next dev",
     "start": "next start",
     "ui": "pnpm dlx shadcn@latest",
     "db:generate": "drizzle-kit generate",

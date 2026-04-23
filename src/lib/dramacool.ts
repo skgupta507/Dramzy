@@ -15,6 +15,11 @@ const BASE_URL =
   "https://api.xyra.stream/v1/dramacool";
 const API_KEY = process.env.XYRA_API_KEY ?? "";
 
+// Secondary source: MyAsianTV (same Dramzy API deployment, different namespace)
+const MAT_BASE_URL = process.env.XYRA_API_URL
+  ? process.env.XYRA_API_URL.replace(/\/dramacool\/?$/, "/myasiantv")
+  : null;
+
 // ─── Core GET fetcher ─────────────────────────────────────────────────────────
 
 async function xyraGet<T>(
