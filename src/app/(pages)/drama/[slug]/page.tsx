@@ -22,6 +22,7 @@ import {
   Calendar, Film, Star, Globe, Clock, ChevronRight, Tv2,
 } from "@/components/icons";
 import type { Metadata, ResolvingMetadata } from "next";
+import { notFound } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import Image from "next/image";
 import Link from "next/link";
@@ -34,7 +35,7 @@ export async function generateMetadata({ params }: PageProps, parent: ResolvingM
   try {
     const { slug } = params;
     const drama = await getDramaInfo(toSlug(decodeURIComponent(slug)));
-    if (!drama) throw new Error();
+    if (!drama) return {};
     return {
       title: drama.title,
       description: drama.description?.slice(0, 160) || `Watch ${drama.title} on Dramzy.`,
@@ -49,7 +50,7 @@ export async function generateMetadata({ params }: PageProps, parent: ResolvingM
 export default async function Page({ params }: PageProps) {
   const { slug } = params;
   const drama = await getDramaInfo(toSlug(decodeURIComponent(slug)));
-  if (!drama) throw new Error("Drama not found");
+  if (!drama) notFound();
 
   const { description, episodes, id, image, otherNames, releaseDate, title, genres, status, country, starring, duration, rating, trailer } = drama;
 

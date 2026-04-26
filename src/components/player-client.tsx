@@ -69,7 +69,6 @@ function IframePlayer({
         src={src}
         title={title}
         className="flex-1 w-full border-0 block"
-        allowFullScreen
         allow="autoplay; fullscreen; encrypted-media; picture-in-picture; web-share"
         referrerPolicy="no-referrer"
       />

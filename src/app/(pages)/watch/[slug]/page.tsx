@@ -71,7 +71,7 @@ export default async function Page({ params }: PageProps) {
       <div className="w-full bg-black border-b border-white/5">
         {/* Same container as the rest of the site */}
         <div className="mx-auto w-full lg:container">
-          <WatchPlayer episodeId={episodeId} />
+          <WatchPlayer episodeId={episodeId} dramaTitle={title} />
         </div>
       </div>
 

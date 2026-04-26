@@ -9,7 +9,7 @@ import Link from "next/link";
 const SOURCES = [
   { id: "dramacool",  label: "DramaCool",  flag: "🎬", referer: "https://dramacool.sh/" },
   { id: "myasiantv",  label: "MyAsianTV",  flag: "📺", referer: "https://myasiantv.com.lv/" },
-  { id: "kisskh",     label: "KissKH",     flag: "🎭", referer: "https://kisskh.asia/" },
+  { id: "kisskh",     label: "KissKH",     flag: "🎭", referer: "https://kisskh.nl/" },
   { id: "kissasian",  label: "KissAsian",  flag: "💋", referer: "https://kissassian.com.co/" },
   { id: "viewasian",  label: "ViewAsian",  flag: "👁️", referer: "https://viewasian.lol/" },
 ] as const;
@@ -163,7 +163,7 @@ function ToolbarBtn({
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
-export function WatchPlayer({ episodeId }: { episodeId: string }) {
+export function WatchPlayer({ episodeId, dramaTitle }: { episodeId: string; dramaTitle?: string }) {
   const [activeSource, setActiveSource] = useState<SourceId>("dramacool");
   const [data,    setData]    = useState<StreamData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -181,7 +181,8 @@ export function WatchPlayer({ episodeId }: { episodeId: string }) {
     setActiveSource(src);
     setEmbedIdx(0);
     setIframeKey(k => k + 1);
-    fetch(`/api/stream?id=${encodeURIComponent(episodeId)}&source=${src}`)
+    const titleParam = dramaTitle ? `&title=${encodeURIComponent(dramaTitle)}` : '';
+    fetch(`/api/stream?id=${encodeURIComponent(episodeId)}&source=${src}${titleParam}`)
       .then(r => r.json())
       .then((d: StreamData) => {
         setData(d);

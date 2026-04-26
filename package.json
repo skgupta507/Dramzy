@@ -12,7 +12,8 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "postinstall": "node scripts/db-generate.mjs",
-    "fmt": "biome format src --write && biome check src --write --unsafe"
+    "fmt": "biome format src --write && biome check src --write --unsafe",
+    "fresh": "node -e \"require('fs').rmSync('.next',{recursive:true,force:true})\" && next dev"
   },
   "dependencies": {
     "@auth/core": "^0.37.4",

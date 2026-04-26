@@ -324,7 +324,10 @@ export async function discover(
 
 export async function getDramaInfo(slug: string): Promise<XyraDramaInfo | null> {
   const cleanSlug = toSlug(decodeURIComponent(slug));
-  const id = toDramaId(cleanSlug);
+  // Strip "drama-detail/" prefix — the API /info endpoint expects just the slug.
+  // The old API expected "drama-detail/slug" but that caused it to build
+  // https://dramacool.sh/drama-detail/slug/ which returns 404.
+  const id = cleanSlug.replace(/^drama-detail\//, "").replace(/^drama-detail%2F/i, "");
 
   const raw = await xyraGet<XyraInfoRaw>("info", { id }, { next: { revalidate: 3600 } } as RequestInit);
   if (!raw) return null;

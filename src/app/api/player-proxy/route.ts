@@ -19,6 +19,8 @@ const AD_PATTERNS = [
   /push\.network/i,          /paupsoborofoow/i,    /gh\.quaukruffed/i,
   /cdn-fileserver\.com/i,    /veroexchange\.com/i, /streamsss\.net/i,
   /gn\.fancierregula/i,      /l\.cdn-fileserver/i,
+  /larinpayment\.com/i,      /bvtpk\.com/i,          /videocdnshop\.com/i,
+  /adblockDetector/i,        /InteractiveAdvertising/i,
 ];
 
 function stripAds(html: string): string {
