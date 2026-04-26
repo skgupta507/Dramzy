@@ -322,39 +322,119 @@ export async function discover(
   return { currentPage: p.currentPage, hasNextPage: p.hasNextPage, results: p.results.map(normaliseCard) };
 }
 
-export async function getDramaInfo(slug: string): Promise<XyraDramaInfo | null> {
-  const cleanSlug = toSlug(decodeURIComponent(slug));
-  // Strip "drama-detail/" prefix — the API /info endpoint expects just the slug.
-  // The old API expected "drama-detail/slug" but that caused it to build
-  // https://dramacool.sh/drama-detail/slug/ which returns 404.
-  const id = cleanSlug.replace(/^drama-detail\//, "").replace(/^drama-detail%2F/i, "");
-
-  const raw = await xyraGet<XyraInfoRaw>("info", { id }, { next: { revalidate: 3600 } } as RequestInit);
-  if (!raw) return null;
-
+function mapRawToInfo(cleanSlug: string, raw: XyraInfoRaw): XyraDramaInfo {
   return {
     id: cleanSlug,
     title: raw.title ?? "Unknown",
-    // API returns "thumbnail" not "image"
     image: isValidImage(raw.thumbnail) ? raw.thumbnail! : "/placeholder.svg",
-    // API returns "synopsis" not "description"
     description: raw.synopsis ?? "",
-    // API returns "other_name" (singular string) not "otherNames" (array)
     otherNames: raw.other_name ? [raw.other_name] : undefined,
     genres: raw.genres,
     releaseDate: raw.release_year ? Number(raw.release_year) : undefined,
-    status: normaliseStatus(raw.status),
-    // Additional fields from API
-    country: raw.country,
-    starring: raw.starring,
-    duration: raw.duration,
-    rating: raw.rating,
-    trailer: raw.trailer,
-    // Episodes: API returns newest-first; reverse so index 0 = Episode 1
+    status: raw.status === "Ongoing"
+      ? "ongoing"
+      : raw.status === "Completed"
+      ? "completed"
+      : raw.status === "Upcoming"
+      ? "upcoming"
+      : undefined,
+    country:  raw.country  ?? undefined,
+    duration: raw.duration ?? undefined,
+    rating:   raw.rating   ?? undefined,
+    starring: raw.starring ?? [],
+    trailer:  raw.trailer  ?? undefined,
     episodes: Array.isArray(raw.episodes)
       ? [...raw.episodes].reverse().map((e, i) => normaliseEpisode(e, i))
       : [],
   };
+}
+
+export async function getDramaInfo(slug: string): Promise<XyraDramaInfo | null> {
+  const cleanSlug = toSlug(decodeURIComponent(slug));
+  const id = cleanSlug.replace(/^drama-detail\//, "").replace(/^drama-detail%2F/i, "");
+
+  // PRIMARY: deployed Xyra API
+  const raw = await xyraGet<XyraInfoRaw>("info", { id }, { next: { revalidate: 3600 } } as RequestInit);
+
+  if (raw) {
+    return mapRawToInfo(cleanSlug, raw);
+  }
+
+  // FALLBACK: scrape DramaCool directly from Next.js server
+  // (episode pages are reliably accessible even when drama pages are CF-blocked)
+  try {
+    const dramaUrl = `https://dramacool.sh/${id}/`;
+    const ep1Url   = `https://dramacool.sh/${id}-episode-1/`;
+
+    let html = "";
+    let fetchedUrl = dramaUrl;
+    for (const url of [dramaUrl, ep1Url]) {
+      try {
+        const res = await fetch(url, {
+          headers: {
+            "User-Agent":      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            "Referer":         "https://dramacool.sh/",
+            "Accept":          "text/html,application/xhtml+xml,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Sec-Fetch-Dest":  "document",
+            "Sec-Fetch-Mode":  "navigate",
+            "Sec-Fetch-Site":  "none",
+          },
+          signal: AbortSignal.timeout(15_000),
+        });
+        if (res.ok) {
+          const text = await res.text();
+          if (!text.includes("Just a moment") && !text.includes("challenge-platform") && text.length > 1000) {
+            html = text;
+            fetchedUrl = url;
+            break;
+          }
+        }
+      } catch { /* try next URL */ }
+    }
+
+    if (!html) return null;
+
+    // Parse HTML with regex (no cheerio in Next.js lib — avoid the dependency)
+    const title       = html.match(/<h1[^>]*>([^<]+)<\/h1>/i)?.[1]?.trim() ?? id;
+    const imgMatch    = html.match(/wp-content\/uploads[^"']+\.(jpg|png|webp)/i);
+    const thumbnail   = imgMatch ? "https://dramacool.sh/" + imgMatch[0].replace(/^https?:\/\/[^/]+\//, "") : null;
+    const synopsis    = html.match(/Synopsis[:\s]+([^<]{30,500})/i)?.[1]?.trim() ?? null;
+    const country     = html.match(/href="[^"]*\/country\/[^"]*">([^<]+)<\/a>/i)?.[1]?.trim() ?? null;
+    const status      = html.match(/href="[^"]*\/drama-status\/[^"]*">([^<]+)<\/a>/i)?.[1]?.trim() ?? null;
+    const releaseYear = html.match(/href="[^"]*\/release-year\/[^"]*">([^<]+)<\/a>/i)?.[1]?.trim() ?? null;
+    const genres      = [...html.matchAll(/href="[^"]*\/genre\/[^"]*">([^<]+)<\/a>/gi)].map(m => m[1].trim()).filter(Boolean);
+    const starring    = [...html.matchAll(/href="[^"]*\/(?:actor|star)\/[^"]*">([^<]+)<\/a>/gi)].map(m => m[1].trim()).filter(Boolean);
+    const trailer     = html.match(/iframe[^>]*src="([^"]*youtu[^"]+)"/i)?.[1] ?? null;
+
+    // Episode slugs from hrefs
+    const epMatches   = [...html.matchAll(/href="\/([^"]+episode-\d+[^"]*)"/gi)];
+    const seen        = new Set<string>();
+    const episodes    = epMatches
+      .map(m => m[1].replace(/\/$/, ""))
+      .filter(s => s.includes("episode") && !seen.has(s) && seen.add(s))
+      .map((epSlug, i) => normaliseEpisode({ id: epSlug, title: epSlug, number: i + 1, time: "" }, i))
+      .reverse();
+
+    return {
+      id: cleanSlug,
+      title: title ?? id,
+      image: thumbnail ? (thumbnail.startsWith("http") ? thumbnail : `https://dramacool.sh/${thumbnail}`) : "/placeholder.svg",
+      description: synopsis ?? "",
+      otherNames: undefined,
+      genres,
+      releaseDate: releaseYear ? Number(releaseYear) : undefined,
+      status:   status ?? undefined,
+      country:  country ?? undefined,
+      duration: undefined,
+      rating:   undefined,
+      starring,
+      trailer:  trailer ?? undefined,
+      episodes,
+    };
+  } catch {
+    return null;
+  }
 }
 
 /**
