@@ -51,6 +51,7 @@ export interface XyraStreamResult {
   sources: XyraSource[];
   subtitles: XyraSubtitle[];
   embedUrl?: string;
+  allEmbeds: string[];   // all available embed URLs in priority order for fallback
 }
 
 export interface XyraPaged<T> { currentPage: number; hasNextPage: boolean; results: T[] }
