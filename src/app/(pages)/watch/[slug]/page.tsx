@@ -62,7 +62,14 @@ export default async function Page({ params }: PageProps) {
   const relatedDramas = (
     trendingResult.status === "fulfilled" ? trendingResult.value.results : []
   ).filter(r => r.id !== dramaSlug).slice(0, 12);
-  const allEpisodes = dramaInfo?.episodes ?? [];
+  // Deduplicate by episode number (API can return sub+dub variants or duplicates)
+  const allEpisodesRaw = dramaInfo?.episodes ?? [];
+  const seenEpNums = new Set<number>();
+  const allEpisodes = allEpisodesRaw.filter(ep => {
+    if (seenEpNums.has(ep.episode)) return false;
+    seenEpNums.add(ep.episode);
+    return true;
+  });
 
   return (
     <div className="min-h-screen bg-[#0f1117]">

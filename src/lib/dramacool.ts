@@ -407,13 +407,16 @@ export async function getDramaInfo(slug: string): Promise<XyraDramaInfo | null> 
     const starring    = [...html.matchAll(/href="[^"]*\/(?:actor|star)\/[^"]*">([^<]+)<\/a>/gi)].map(m => m[1].trim()).filter(Boolean);
     const trailer     = html.match(/iframe[^>]*src="([^"]*youtu[^"]+)"/i)?.[1] ?? null;
 
-    // Episode slugs from hrefs
+    // Episode slugs from hrefs — deduplicate by slug AND episode number
     const epMatches   = [...html.matchAll(/href="\/([^"]+episode-\d+[^"]*)"/gi)];
-    const seen        = new Set<string>();
-    const episodes    = epMatches
+    const seenSlugs   = new Set<string>();
+    const seenNums    = new Set<number>();
+    const rawEps      = epMatches
       .map(m => m[1].replace(/\/$/, ""))
-      .filter(s => s.includes("episode") && !seen.has(s) && seen.add(s))
+      .filter(s => s.includes("episode") && !seenSlugs.has(s) && seenSlugs.add(s));
+    const episodes    = rawEps
       .map((epSlug, i) => normaliseEpisode({ id: epSlug, title: epSlug, number: i + 1, time: "" }, i))
+      .filter(ep => !seenNums.has(ep.episode) && seenNums.add(ep.episode))
       .reverse();
 
     return {
