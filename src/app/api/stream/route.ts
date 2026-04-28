@@ -92,6 +92,18 @@ function extractEmbeds(html: string): string[] {
   const re3 = /value=["'](https?:\/\/[^"']+(?:stream|embed|watch)[^"']+)["']/gi;
   while ((m = re3.exec(html))) add(m[1]);
 
+  // ViewAsian / general: onclick and window.location patterns
+  const re4 = /(?:window\.open|location\.href)\s*[=(]\s*["'](https?:\/\/[^"']+)["']/gi;
+  while ((m = re4.exec(html))) add(m[1]);
+
+  // href links to known embed domains (some sites use plain anchor tags)
+  const re5 = /href=["'](https?:\/\/(?:vidbasic|streamwish|filelions|dwish|dlions|chillx|embedload|asianload)[^"']+)["']/gi;
+  while ((m = re5.exec(html))) add(m[1]);
+
+  // JSON-like patterns: "url":"...", "file":"...", "src":"..."
+  const re6 = /["'](?:url|file|src|embed|link)["']\s*:\s*["'](https?:\/\/[^"'\s]+)["']/gi;
+  while ((m = re6.exec(html))) add(m[1]);
+
   return out;
 }
 
@@ -143,7 +155,13 @@ async function tryUrls(urls: string[], referer: string): Promise<{ html: string;
         if (html.includes("Just a moment") || html.includes("challenge-platform") || html.includes("cf-browser-verification")) continue;
         if (html.length < 500) continue;
         return { html, url };
-      } catch { /* try next */ }
+      } catch (e: any) {
+        // 521 = Web server is down — skip remaining URLs for this host
+        if (e?.message?.includes("521") || e?.message?.includes("522") || e?.message?.includes("523")) {
+          return null;
+        }
+        /* try next */
+      }
     }
   }
   return null;
@@ -272,9 +290,9 @@ async function scrapeKissAsian(episodeId: string) {
     } catch { /* fallback */ }
   }
 
-  // FALLBACK: inline scraping
+  // FALLBACK: inline scraping (skip if server returns 521 = web server down)
   const result = await tryUrls(episodeUrls(base, episodeId), base + "/");
-  if (!result) throw new Error("KissAsian: episode page not found");
+  if (!result) throw new Error("KissAsian: episode not found or server down (521)");
   const embeds = extractEmbeds(result.html);
   let hlsUrl = extractM3u8(result.html);
   if (!hlsUrl && embeds[0]) {
@@ -341,12 +359,41 @@ async function scrapeViewAsian(episodeId: string) {
       if (episodeUrl) {
         const epResult = await tryUrls([episodeUrl], base + "/");
         if (epResult) {
-          const embeds = extractEmbeds(epResult.html);
+          let embeds = extractEmbeds(epResult.html);
           let hlsUrl = extractM3u8(epResult.html);
+
+          // ViewAsian uses WordPress AJAX like MAT — try admin-ajax if no static embeds
+          if (embeds.length === 0) {
+            const postId = epResult.html.match(/(?:post_id|postID|"post_id":|data-post=|postid-)[^0-9]*(\d+)/i)?.[1];
+            if (postId) {
+              try {
+                const ajaxRes = await fetch(`${base}/wp-admin/admin-ajax.php`, {
+                  method: "POST",
+                  headers: {
+                    "User-Agent": UA,
+                    "Referer": episodeUrl as string,
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    "X-Requested-With": "XMLHttpRequest",
+                  },
+                  body: new URLSearchParams({ action: "doo_player_ajax", post_id: postId, nume: "1", server: "1" }).toString(),
+                  signal: AbortSignal.timeout(8000),
+                });
+                if (ajaxRes.ok) {
+                  const ajaxText = await ajaxRes.text();
+                  const ajaxEmbeds = extractEmbeds(ajaxText);
+                  if (ajaxEmbeds.length > 0) embeds = ajaxEmbeds;
+                  // Also check iframe src in response
+                  const iframeSrc = ajaxText.match(/src=["'](https?:\/\/[^"']+)["']/i)?.[1];
+                  if (iframeSrc && !embeds.includes(iframeSrc)) embeds.unshift(iframeSrc);
+                }
+              } catch { /* ajax failed */ }
+            }
+          }
+
           if (!hlsUrl && embeds[0]) {
             try { const eh = await fetchPage(embeds[0], base + "/"); hlsUrl = extractM3u8(eh); } catch { /* */ }
           }
-          return { embedUrl: embeds[0] ?? null, allEmbeds: embeds, hlsUrl, finalUrl: episodeUrl };
+          return { embedUrl: embeds[0] ?? null, allEmbeds: embeds, hlsUrl, finalUrl: episodeUrl as string };
         }
       }
     } catch { /* fall through */ }
@@ -401,7 +448,12 @@ async function scrapeKissKH(episodeId: string, dramaTitle?: string) {
       const epMatch = episodeId.match(/episode-(\d+)/i);
       const epNum   = epMatch ? parseInt(epMatch[1]) : null;
       const epRecord = epNum
-        ? (episodes.find((e: any) => e.number === epNum || e.ep === epNum) ?? episodes[episodes.length - 1])
+        ? (episodes.find((e: any) =>
+            e.number === epNum || e.ep === epNum ||
+            String(e.number) === String(epNum) ||
+            String(e.ep) === String(epNum)
+          ) ?? episodes.find((e: any) => Math.abs((e.number ?? e.ep ?? 0) - epNum) <= 1)
+            ?? episodes[episodes.length - 1])
         : episodes[episodes.length - 1];
 
       if (!epRecord) { lastErr = `Episode ${epNum} not found`; continue; }

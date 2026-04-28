@@ -316,7 +316,15 @@ export async function discover(
   page = 1,
   filters: { type?: string; country?: string; genre?: string; release_year?: string | number } = {},
 ): Promise<TopAiring> {
-  const raw = await xyraGet<XyraPagedRaw>("discover", { page, ...filters }, { next: { revalidate: 600 } } as RequestInit);
+  // Slugify country and genre so the API builds valid DramaCool URLs
+  // e.g. "South Korea" → "south-korea", "Romance" → "romance"
+  const toSlug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const sluggedFilters = {
+    ...filters,
+    ...(filters.country ? { country: toSlug(filters.country) } : {}),
+    ...(filters.genre   ? { genre:   toSlug(filters.genre)   } : {}),
+  };
+  const raw = await xyraGet<XyraPagedRaw>("discover", { page, ...sluggedFilters }, { next: { revalidate: 600 } } as RequestInit);
   if (!raw) return emptyPaged(page);
   const p = extractPaged(raw);
   return { currentPage: p.currentPage, hasNextPage: p.hasNextPage, results: p.results.map(normaliseCard) };
@@ -415,7 +423,7 @@ export async function getDramaInfo(slug: string): Promise<XyraDramaInfo | null> 
       .map(m => m[1].replace(/\/$/, ""))
       .filter(s => s.includes("episode") && !seenSlugs.has(s) && seenSlugs.add(s));
     const episodes    = rawEps
-      .map((epSlug, i) => normaliseEpisode({ id: epSlug, title: epSlug, number: i + 1, time: "" }, i))
+      .map((epSlug, i) => normaliseEpisode({ id: epSlug, episode_id: epSlug, title: epSlug, time: "" }, i))
       .filter(ep => !seenNums.has(ep.episode) && seenNums.add(ep.episode))
       .reverse();
 

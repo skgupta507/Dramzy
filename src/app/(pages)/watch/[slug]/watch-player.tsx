@@ -12,6 +12,9 @@ const SOURCES = [
   { id: "kisskh",     label: "KissKH",     flag: "🎭", referer: "https://kisskh.nl/" },
   { id: "kissasian",  label: "KissAsian",  flag: "💋", referer: "https://kissassian.com.co/" },
   { id: "viewasian",  label: "ViewAsian",  flag: "👁️", referer: "https://viewasian.lol/" },
+  { id: "dramanice",  label: "DramaNice",  flag: "🌸", referer: "https://dramanice.click/" },
+  { id: "dramago",    label: "DramaGo",    flag: "🎯", referer: "https://dramago.rest/" },
+  { id: "dramasee",   label: "DramaSee",   flag: "🔮", referer: "https://dramassee.com/" },
 ] as const;
 
 type SourceId = typeof SOURCES[number]["id"];
