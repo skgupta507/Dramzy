@@ -52,7 +52,16 @@ export default async function Page({ params }: PageProps) {
   const drama = await getDramaInfo(toSlug(decodeURIComponent(slug)));
   if (!drama) notFound();
 
-  const { description, episodes, id, image, otherNames, releaseDate, title, genres, status, country, starring, duration, rating, trailer } = drama;
+  const { description, id, image, otherNames, releaseDate, title, genres, status, country, starring, duration, rating, trailer } = drama;
+  // Deduplicate and sort episodes ascending (1 → 2 → 3...)
+  const seenDramaEpNums = new Set<number>();
+  const episodes = (drama.episodes ?? [])
+    .filter(ep => {
+      if (seenDramaEpNums.has(ep.episode)) return false;
+      seenDramaEpNums.add(ep.episode);
+      return true;
+    })
+    .sort((a, b) => a.episode - b.episode);
 
   // Fetch related dramas for the "More Like This" section
   const related = await getTrending(1);
