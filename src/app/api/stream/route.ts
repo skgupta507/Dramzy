@@ -67,10 +67,21 @@ function extractEmbeds(html: string): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
 
+  // Only accept known video embed/CDN domains — reject navigation/drama page links
+  const EMBED_DOMAINS = [
+    "embedload", "asianload", "vidbasic", "streamwish", "dwish",
+    "filelions", "dlions", "vidmoly", "doodstream", "streamtape",
+    "upstream", "rabbitstream", "megacloud", "chillx", "wishembed",
+    "kisskh.space", "embed.", "player.", "stream.", "/embed/", "/player/",
+  ];
+  const isEmbedUrl = (u: string) => EMBED_DOMAINS.some(d => u.includes(d));
+
   const add = (u?: string | null) => {
     if (!u) return;
     const t = u.trim();
-    if (t.startsWith("http") && !seen.has(t)) { seen.add(t); out.push(t); }
+    if (t.startsWith("http") && !seen.has(t) && isEmbedUrl(t)) {
+      seen.add(t); out.push(t);
+    }
   };
 
   // data-server attributes (DramaCool / KissAsian theme)
@@ -419,13 +430,17 @@ async function scrapeGeneric(base: string, episodeId: string) {
 
 async function scrapeKissKH(episodeId: string, dramaTitle?: string) {
   const bases = [
+    "https://kisskh.space",
     process.env.KISSKH_URL,
     "https://kisskh.nl",
     "https://kisskh.asia",
   ].filter(Boolean) as string[];
 
-  const query = dramaTitle
+  // Strip parentheses from title — KissKH search doesn't handle them well
+  // e.g. "The Epoch of Miyu (2026)" → "The Epoch of Miyu 2026"
+  const rawQuery = dramaTitle
     ?? episodeId.replace(/-episode-\d+.*$/i, "").replace(/-/g, " ").trim();
+  const query = rawQuery.replace(/[()]/g, "").replace(/\s+/g, " ").trim();
 
   let lastErr = "";
   for (const base of bases) {

@@ -65,11 +65,13 @@ export default async function Page({ params }: PageProps) {
   // Deduplicate by episode number (API can return sub+dub variants or duplicates)
   const allEpisodesRaw = dramaInfo?.episodes ?? [];
   const seenEpNums = new Set<number>();
-  const allEpisodes = allEpisodesRaw.filter(ep => {
-    if (seenEpNums.has(ep.episode)) return false;
-    seenEpNums.add(ep.episode);
-    return true;
-  });
+  const allEpisodes = allEpisodesRaw
+    .filter(ep => {
+      if (seenEpNums.has(ep.episode)) return false;
+      seenEpNums.add(ep.episode);
+      return true;
+    })
+    .sort((a, b) => a.episode - b.episode);  // ascending: 1 → 2 → 3...
 
   return (
     <div className="min-h-screen bg-[#0f1117]">

@@ -352,7 +352,7 @@ function mapRawToInfo(cleanSlug: string, raw: XyraInfoRaw): XyraDramaInfo {
     starring: raw.starring ?? [],
     trailer:  raw.trailer  ?? undefined,
     episodes: Array.isArray(raw.episodes)
-      ? [...raw.episodes].reverse().map((e, i) => normaliseEpisode(e, i))
+      ? [...raw.episodes].map((e, i) => normaliseEpisode(e, i))
       : [],
   };
 }
@@ -424,8 +424,7 @@ export async function getDramaInfo(slug: string): Promise<XyraDramaInfo | null> 
       .filter(s => s.includes("episode") && !seenSlugs.has(s) && seenSlugs.add(s));
     const episodes    = rawEps
       .map((epSlug, i) => normaliseEpisode({ id: epSlug, episode_id: epSlug, title: epSlug, time: "" }, i))
-      .filter(ep => !seenNums.has(ep.episode) && seenNums.add(ep.episode))
-      .reverse();
+      .filter(ep => !seenNums.has(ep.episode) && seenNums.add(ep.episode));
 
     return {
       id: cleanSlug,
@@ -435,7 +434,11 @@ export async function getDramaInfo(slug: string): Promise<XyraDramaInfo | null> 
       otherNames: undefined,
       genres,
       releaseDate: releaseYear ? Number(releaseYear) : undefined,
-      status:   status ?? undefined,
+      status: (
+        status?.toLowerCase().includes("ongoing") ? "ongoing" :
+        status?.toLowerCase().includes("complet") ? "completed" :
+        status?.toLowerCase().includes("upcoming") ? "upcoming" : undefined
+      ),
       country:  country ?? undefined,
       duration: undefined,
       rating:   undefined,

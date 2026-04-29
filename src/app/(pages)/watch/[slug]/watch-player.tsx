@@ -9,7 +9,7 @@ import Link from "next/link";
 const SOURCES = [
   { id: "dramacool",  label: "DramaCool",  flag: "🎬", referer: "https://dramacool.sh/" },
   { id: "myasiantv",  label: "MyAsianTV",  flag: "📺", referer: "https://myasiantv.com.lv/" },
-  { id: "kisskh",     label: "KissKH",     flag: "🎭", referer: "https://kisskh.nl/" },
+  { id: "kisskh",     label: "KissKH",     flag: "🎭", referer: "https://kisskh.space/" },
   { id: "kissasian",  label: "KissAsian",  flag: "💋", referer: "https://kissassian.com.co/" },
   { id: "viewasian",  label: "ViewAsian",  flag: "👁️", referer: "https://viewasian.lol/" },
   { id: "dramanice",  label: "DramaNice",  flag: "🌸", referer: "https://dramanice.click/" },
