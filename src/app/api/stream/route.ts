@@ -418,7 +418,40 @@ async function scrapeViewAsian(episodeId: string) {
 async function scrapeGeneric(base: string, episodeId: string) {
   const result = await tryUrls(episodeUrls(base, episodeId), base + "/");
   if (!result) throw new Error(`${base}: episode page not found`);
-  const embeds = extractEmbeds(result.html);
+
+  let embeds = extractEmbeds(result.html);
+
+  // DramaCool clones load embeds via WordPress AJAX — try if static HTML has nothing
+  if (embeds.length === 0) {
+    const postId = result.html.match(
+      /(?:post_id|postID|"post_id":|postid-|data-post=)[^0-9]*(\d{4,})/i
+    )?.[1];
+    if (postId) {
+      for (const action of ["doo_player_ajax", "ajax_movie", "player_ajax"]) {
+        try {
+          const ajaxRes = await fetch(`${base}/wp-admin/admin-ajax.php`, {
+            method: "POST",
+            headers: {
+              "User-Agent":        UA,
+              "Referer":           result.url,
+              "Content-Type":      "application/x-www-form-urlencoded",
+              "X-Requested-With":  "XMLHttpRequest",
+            },
+            body: new URLSearchParams({ action, post_id: postId, nume: "1", server: "1" }).toString(),
+            signal: AbortSignal.timeout(8000),
+          });
+          if (ajaxRes.ok) {
+            const text = await ajaxRes.text();
+            const ajaxEmbeds = extractEmbeds(text);
+            if (ajaxEmbeds.length > 0) { embeds = ajaxEmbeds; break; }
+            const iframeSrc = text.match(/src=["'](https?:\/\/[^"']+)["']/i)?.[1];
+            if (iframeSrc) { embeds = [iframeSrc]; break; }
+          }
+        } catch { /* try next */ }
+      }
+    }
+  }
+
   let hlsUrl = extractM3u8(result.html);
   if (!hlsUrl && embeds[0]) {
     try { const eh = await fetchPage(embeds[0], base + "/"); hlsUrl = extractM3u8(eh); } catch { /* */ }
