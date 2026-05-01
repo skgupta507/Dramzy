@@ -9,7 +9,6 @@ import Link from "next/link";
 const SOURCES = [
   { id: "dramacool",  label: "DramaCool",  flag: "🎬", referer: "https://dramacool.sh/" },
   { id: "myasiantv",  label: "MyAsianTV",  flag: "📺", referer: "https://myasiantv.com.lv/" },
-  { id: "kisskh",     label: "KissKH",     flag: "🎭", referer: "https://kisskh.space/" },
   { id: "kissasian",  label: "KissAsian",  flag: "💋", referer: "https://kissassian.com.co/" },
   { id: "viewasian",  label: "ViewAsian",  flag: "👁️", referer: "https://viewasian.lol/" },
   { id: "dramanice",  label: "DramaNice",  flag: "🌸", referer: "https://dramanice.click/" },
@@ -219,7 +218,7 @@ export function WatchPlayer({ episodeId, dramaTitle }: { episodeId: string; dram
 
       {/* ── Row 1: Source selector ─────────────────────────────────────── */}
       <div className="bg-[#090c14] border-b border-white/5 px-3 py-2 flex items-center gap-1.5 flex-wrap">
-        <span className="text-[9px] text-white/25 font-bold uppercase tracking-[0.15em] shrink-0">Source</span>
+        <span className="text-[9px] text-white/25 font-bold uppercase tracking-[0.15em] shrink-0 hidden sm:inline">Source</span>
         {SOURCES.map(src => (
           <button
             key={src.id}

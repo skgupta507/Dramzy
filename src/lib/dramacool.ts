@@ -423,7 +423,7 @@ export async function getDramaInfo(slug: string): Promise<XyraDramaInfo | null> 
     const seenNums    = new Set<number>();
     const rawEps      = epMatches
       .map(m => m[1].replace(/\/$/, ""))
-      .filter(s => s.includes("episode") && s.startsWith(cleanId) && !seenSlugs.has(s) && seenSlugs.add(s));
+      .filter(s => s.includes("episode") && s.startsWith(id) && !seenSlugs.has(s) && seenSlugs.add(s));
     const episodes    = rawEps
       .map((epSlug, i) => normaliseEpisode({ id: epSlug, episode_id: epSlug, title: epSlug, time: "" }, i))
       .filter(ep => !seenNums.has(ep.episode) && seenNums.add(ep.episode));

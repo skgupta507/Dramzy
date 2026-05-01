@@ -568,14 +568,6 @@ export async function GET(req: NextRequest) {
     } catch (err: any) { return fail("dramacool", err.message); }
   }
 
-  // KissKH — search-based JSON API
-  if (source === "kisskh") {
-    try {
-      const r = await scrapeKissKH(episodeId, title);
-      return ok("kisskh", { ...r, title: null, number: null, next: null, prev: null });
-    } catch (err: any) { return fail("kisskh", err.message); }
-  }
-
   // All other HTML-scraped sources
   try {
     let r: any;
