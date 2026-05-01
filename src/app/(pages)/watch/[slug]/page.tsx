@@ -80,7 +80,7 @@ export default async function Page({ params }: PageProps) {
       <div className="w-full bg-black border-b border-white/5">
         {/* Same container as the rest of the site */}
         <div className="mx-auto w-full lg:container">
-          <WatchPlayer episodeId={episodeId} dramaTitle={title} />
+          <WatchPlayer key={episodeId} episodeId={episodeId} dramaTitle={title} />
         </div>
       </div>
 
@@ -157,10 +157,15 @@ export default async function Page({ params }: PageProps) {
               <div className="flex gap-2 pb-3">
                 {allEpisodes.map(ep => {
                   const isCurrent = ep.episode === number;
+                  // Guard: ensure ep.id belongs to this drama, not a cached wrong result
+                  // If ep.id doesn't contain the dramaSlug, construct the correct slug
+                  const safeEpId = ep.id && ep.id.includes(dramaSlug)
+                    ? ep.id
+                    : `${dramaSlug}-episode-${ep.episode}`;
                   return (
                     <Link
-                      key={ep.id}
-                      href={`/watch/${ep.id}`}
+                      key={safeEpId}
+                      href={`/watch/${safeEpId}`}
                       prefetch={false}
                       className={`shrink-0 flex flex-col items-center gap-1 p-2.5 rounded-lg border transition-all w-[58px] ${
                         isCurrent

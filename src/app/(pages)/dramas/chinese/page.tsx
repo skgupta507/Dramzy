@@ -1,6 +1,8 @@
 import { CountryDramaPage, buildMetadata } from "../page-template";
 import type { CountryConfig } from "../page-template";
 
+export const dynamic = 'force-dynamic';
+
 const cfg: CountryConfig = {
   country: "China",
   label: "Chinese",

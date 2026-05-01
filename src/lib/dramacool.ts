@@ -415,13 +415,15 @@ export async function getDramaInfo(slug: string): Promise<XyraDramaInfo | null> 
     const starring    = [...html.matchAll(/href="[^"]*\/(?:actor|star)\/[^"]*">([^<]+)<\/a>/gi)].map(m => m[1].trim()).filter(Boolean);
     const trailer     = html.match(/iframe[^>]*src="([^"]*youtu[^"]+)"/i)?.[1] ?? null;
 
-    // Episode slugs from hrefs — deduplicate by slug AND episode number
+    // Episode slugs from hrefs — only those belonging to THIS drama (not sidebar related dramas)
+    // DramaCool pages include related/recent drama episode links in sidebars
+    // We filter to slugs that start with the drama's own cleanId to avoid cross-contamination
     const epMatches   = [...html.matchAll(/href="\/([^"]+episode-\d+[^"]*)"/gi)];
     const seenSlugs   = new Set<string>();
     const seenNums    = new Set<number>();
     const rawEps      = epMatches
       .map(m => m[1].replace(/\/$/, ""))
-      .filter(s => s.includes("episode") && !seenSlugs.has(s) && seenSlugs.add(s));
+      .filter(s => s.includes("episode") && s.startsWith(cleanId) && !seenSlugs.has(s) && seenSlugs.add(s));
     const episodes    = rawEps
       .map((epSlug, i) => normaliseEpisode({ id: epSlug, episode_id: epSlug, title: epSlug, time: "" }, i))
       .filter(ep => !seenNums.has(ep.episode) && seenNums.add(ep.episode));

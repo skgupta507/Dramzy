@@ -5,6 +5,8 @@ import { discover, getTrending } from "@/lib/dramacool";
 import Link from "next/link";
 import type { Metadata } from "next";
 
+export const dynamic = 'force-dynamic';
+
 export interface CountryConfig {
   country: string;           // API filter value e.g. "South Korea"
   label: string;             // Display name

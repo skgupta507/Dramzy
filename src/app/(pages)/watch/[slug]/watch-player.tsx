@@ -218,7 +218,7 @@ export function WatchPlayer({ episodeId, dramaTitle }: { episodeId: string; dram
     <div className="w-full">
 
       {/* ── Row 1: Source selector ─────────────────────────────────────── */}
-      <div className="bg-[#090c14] border-b border-white/5 px-4 py-2 flex items-center gap-2 overflow-x-auto scrollbar-hide">
+      <div className="bg-[#090c14] border-b border-white/5 px-3 py-2 flex items-center gap-1.5 flex-wrap">
         <span className="text-[9px] text-white/25 font-bold uppercase tracking-[0.15em] shrink-0">Source</span>
         {SOURCES.map(src => (
           <button

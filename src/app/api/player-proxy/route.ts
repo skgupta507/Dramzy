@@ -110,6 +110,7 @@ export async function GET(req: NextRequest) {
         "Accept":          "*/*",
         "Accept-Language": "en-US,en;q=0.9",
       },
+      signal: AbortSignal.timeout(12_000), // 12s — prevent hanging on dead CDNs
     });
 
     const contentType = res.headers.get("content-type") ?? "application/octet-stream";

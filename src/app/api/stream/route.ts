@@ -429,12 +429,13 @@ async function scrapeGeneric(base: string, episodeId: string) {
 // ── KissKH — JSON API with numeric IDs ───────────────────────────────────────
 
 async function scrapeKissKH(episodeId: string, dramaTitle?: string) {
+  // kisskh.space is a DramaCool-clone STREAMING site, NOT the KissKH JSON API
+  // The JSON API is only available on kisskh.nl and kisskh.asia
   const bases = [
-    "https://kisskh.space",
     process.env.KISSKH_URL,
     "https://kisskh.nl",
     "https://kisskh.asia",
-  ].filter(Boolean) as string[];
+  ].filter(b => b && !b.includes("kisskh.space")) as string[];
 
   // Strip parentheses from title — KissKH search doesn't handle them well
   // e.g. "The Epoch of Miyu (2026)" → "The Epoch of Miyu 2026"
@@ -479,9 +480,12 @@ async function scrapeKissKH(episodeId: string, dramaTitle?: string) {
         base + "/"
       );
       const sd = streamData?.data ?? streamData;
-      const stream = sd?.Video ?? sd?.video ?? null;
-      const backup = sd?.BackupVideo ?? sd?.backupVideo ?? null;
-      const allEmbeds = [stream, backup].filter(Boolean) as string[];
+      const stream = sd?.Video ?? sd?.video ?? sd?.Iframe ?? sd?.iframe ?? null;
+      const backup = sd?.BackupVideo ?? sd?.backupVideo ?? sd?.Video2 ?? null;
+      const sub    = sd?.sub ?? sd?.Sub ?? null;
+      const allEmbeds = [stream, backup, sub].filter(Boolean) as string[];
+
+      if (!allEmbeds.length) { lastErr = `KissKH episode ${numericEpId} has no video URL`; continue; }
 
       return {
         embedUrl:  allEmbeds[0] ?? null,
@@ -516,13 +520,41 @@ export async function GET(req: NextRequest) {
 
   if (!episodeId) return fail("unknown", "Missing id param");
 
-  // DramaCool — local lib
+  // DramaCool — local lib (deployed API) with direct scrape fallback
   if (source === "dramacool") {
     try {
       const [sources, info] = await Promise.all([
         getEpisodeSources(episodeId),
         getEpisodeInfo(episodeId),
       ]);
+
+      // If API found no sources, try scraping DramaCool directly
+      const hasStream = (sources?.allEmbeds?.length ?? 0) > 0
+        || sources?.embedUrl
+        || sources?.sources?.find(s => s.isM3U8);
+
+      if (!hasStream) {
+        // Inline fallback: scrape DramaCool episode page directly
+        const base = "https://dramacool.sh";
+        const result = await tryUrls(episodeUrls(base, episodeId), base + "/");
+        if (result) {
+          const embeds = extractEmbeds(result.html);
+          const hlsUrl = extractM3u8(result.html);
+          if (embeds.length > 0 || hlsUrl) {
+            return ok("dramacool", {
+              embedUrl:  embeds[0] ?? null,
+              allEmbeds: embeds,
+              hlsUrl,
+              title:     info.title,
+              number:    info.number,
+              dramaId:   info.dramaId,
+              next:      info.episodes?.next     ?? null,
+              prev:      info.episodes?.previous ?? null,
+            });
+          }
+        }
+      }
+
       return ok("dramacool", {
         embedUrl:  sources?.embedUrl ?? null,
         allEmbeds: sources?.allEmbeds ?? [],
