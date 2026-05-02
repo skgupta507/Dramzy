@@ -316,18 +316,64 @@ export async function discover(
   page = 1,
   filters: { type?: string; country?: string; genre?: string; release_year?: string | number } = {},
 ): Promise<TopAiring> {
-  // Slugify country and genre so the API builds valid DramaCool URLs
-  // e.g. "South Korea" → "south-korea", "Romance" → "romance"
   const toSlug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
   const sluggedFilters = {
     ...filters,
     ...(filters.country ? { country: toSlug(filters.country) } : {}),
     ...(filters.genre   ? { genre:   toSlug(filters.genre)   } : {}),
   };
+
+  // PRIMARY: deployed API
   const raw = await xyraGet<XyraPagedRaw>("discover", { page, ...sluggedFilters }, { next: { revalidate: 600 } } as RequestInit);
-  if (!raw) return emptyPaged(page);
-  const p = extractPaged(raw);
-  return { currentPage: p.currentPage, hasNextPage: p.hasNextPage, results: p.results.map(normaliseCard) };
+  if (raw) {
+    const p = extractPaged(raw);
+    return { currentPage: p.currentPage, hasNextPage: p.hasNextPage, results: p.results.map(normaliseCard) };
+  }
+
+  // FALLBACK: scrape DramaCool directly from Vercel server
+  // Vercel IPs are less aggressively blocked than Cloudflare Pages IPs
+  try {
+    const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+    const qs = new URLSearchParams({ type: filters.type ?? "drama", ob: "popular", page: String(page) });
+    if (sluggedFilters.country) qs.set("co", toSlug(sluggedFilters.country as string));
+    if (sluggedFilters.genre)   qs.set("ge", toSlug(sluggedFilters.genre as string));
+    if (filters.release_year)   qs.set("re", String(filters.release_year));
+
+    const url = `https://dramacool.sh/drama-list/?${qs}`;
+    const res = await fetch(url, {
+      headers: { "User-Agent": UA, "Referer": "https://dramacool.sh/", "Accept-Language": "en-US,en;q=0.9" },
+      next: { revalidate: 600 },
+      signal: AbortSignal.timeout(12_000),
+    });
+
+    if (!res.ok) return emptyPaged(page);
+    const html = await res.text();
+    if (html.includes("Just a moment") || html.includes("challenge-platform")) return emptyPaged(page);
+
+    // Parse drama cards from HTML
+    const results: Featured[] = [];
+    const cardRe = /<li>[\s\S]*?<a\s+href="([^"]+)"[^>]*>[\s\S]*?<img[^>]+src="([^"]+)"[^>]*>[\s\S]*?<h3[^>]*>\s*<a[^>]*>([^<]+)<\/a>/gi;
+    let m: RegExpMatchArray | null;
+    const titleRe = cardRe;
+    while ((m = titleRe.exec(html)) !== null) {
+      const slug = m[1].replace(/^https?:\/\/[^/]+/, "").replace(/^\/|\/$/g, "");
+      const image = m[2].startsWith("//") ? `https:${m[2]}` : m[2];
+      const title = m[3].trim();
+      if (slug && title) {
+        results.push({
+          id: slug,
+          title,
+          image: isValidImage(image) ? image : "/placeholder.svg",
+          description: "",
+          subType: "SUB",
+        } as Featured);
+      }
+    }
+
+    return { currentPage: page, hasNextPage: results.length >= 20, results };
+  } catch {
+    return emptyPaged(page);
+  }
 }
 
 function mapRawToInfo(cleanSlug: string, raw: XyraInfoRaw): XyraDramaInfo {
