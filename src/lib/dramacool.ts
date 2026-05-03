@@ -331,7 +331,7 @@ export async function discover(
   }
 
   // FALLBACK: scrape DramaCool directly from Vercel server
-  // Vercel IPs are less aggressively blocked than Cloudflare Pages IPs
+  // Vercel IPs are far less blocked than Cloudflare Pages IPs
   try {
     const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
     const qs = new URLSearchParams({ type: filters.type ?? "drama", ob: "popular", page: String(page) });
@@ -341,7 +341,12 @@ export async function discover(
 
     const url = `https://dramacool.sh/drama-list/?${qs}`;
     const res = await fetch(url, {
-      headers: { "User-Agent": UA, "Referer": "https://dramacool.sh/", "Accept-Language": "en-US,en;q=0.9" },
+      headers: {
+        "User-Agent":      UA,
+        "Referer":         "https://dramacool.sh/",
+        "Accept":          "text/html,application/xhtml+xml,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+      },
       next: { revalidate: 600 },
       signal: AbortSignal.timeout(12_000),
     });
@@ -350,27 +355,52 @@ export async function discover(
     const html = await res.text();
     if (html.includes("Just a moment") || html.includes("challenge-platform")) return emptyPaged(page);
 
-    // Parse drama cards from HTML
+    // Parse using same patterns as normaliseCard — extract href, img, title from list items
     const results: Featured[] = [];
-    const cardRe = /<li>[\s\S]*?<a\s+href="([^"]+)"[^>]*>[\s\S]*?<img[^>]+src="([^"]+)"[^>]*>[\s\S]*?<h3[^>]*>\s*<a[^>]*>([^<]+)<\/a>/gi;
-    let m: RegExpMatchArray | null;
-    const titleRe = cardRe;
-    while ((m = titleRe.exec(html)) !== null) {
-      const slug = m[1].replace(/^https?:\/\/[^/]+/, "").replace(/^\/|\/$/g, "");
-      const image = m[2].startsWith("//") ? `https:${m[2]}` : m[2];
-      const title = m[3].trim();
-      if (slug && title) {
-        results.push({
-          id: slug,
-          title,
-          image: isValidImage(image) ? image : "/placeholder.svg",
-          description: "",
-          subType: "SUB",
-        } as Featured);
-      }
+    const seen = new Set<string>();
+
+    // Pattern: extract each drama card's href + img src + title text
+    // DramaCool structure: <li><div class="img"><a href="/slug/"><img src="..."/></a></div><h3><a href="/slug/">Title</a></h3></li>
+    const hrefRe   = /href="(\/[^"]+\/)"/g;
+    const imgRe    = /<img[^>]+src="([^"]+)"/g;
+    const titleRe  = /<h3[^>]*>\s*<a[^>]*>([^<]+)<\/a>/g;
+
+    const hrefs:  string[] = [];
+    const imgs:   string[] = [];
+    const titles: string[] = [];
+
+    let m: RegExpExecArray | null;
+    while ((m = hrefRe.exec(html))  !== null) hrefs.push(m[1]);
+    while ((m = imgRe.exec(html))   !== null) imgs.push(m[1]);
+    while ((m = titleRe.exec(html)) !== null) titles.push(m[1].trim());
+
+    // Pair them up — skip navigation links (short paths like /, /home, /popular)
+    const dramaHrefs = hrefs.filter(h => h.split("/").filter(Boolean).length >= 1 && !h.includes("?") && h !== "/");
+
+    for (let i = 0; i < Math.min(dramaHrefs.length, titles.length); i++) {
+      const slug  = dramaHrefs[i].replace(/^\/|\/$/g, "");
+      const title = titles[i];
+      const image = imgs[i] ?? "";
+      const cleanImg = image.startsWith("//") ? "https:" + image : image;
+
+      if (!slug || !title || seen.has(slug)) continue;
+      seen.add(slug);
+
+      results.push({
+        id:          slug,
+        title,
+        image:       isValidImage(cleanImg) ? cleanImg : "/placeholder.svg",
+        description: "",
+        subType:     "SUB" as const,
+      });
+
+      if (results.length >= 24) break;
     }
 
-    return { currentPage: page, hasNextPage: results.length >= 20, results };
+    if (results.length > 0) {
+      return { currentPage: page, hasNextPage: results.length >= 20, results };
+    }
+    return emptyPaged(page);
   } catch {
     return emptyPaged(page);
   }
